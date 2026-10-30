@@ -33,7 +33,7 @@ async function initAudio(ctx: AudioContext): Promise<AudioState> {
 
   let synth: WorkletSynthesizer | null = null;
   try {
-    await ctx.audioWorklet.addModule("/spessasynth_processor.min.js");
+    await ctx.audioWorklet.addModule("spessasynth_processor.min.js");
     synth = new WorkletSynthesizer(ctx);
     const buffer = await fetch("1mgm.sf2").then(response => response.arrayBuffer());
     await synth.soundBankManager.addSoundBank(buffer, "main");

@@ -1,4 +1,10 @@
-# WIE
+# WIE (gamepad fork)
+
+This project is based on [wie](https://github.com/dlunch/wie), created by Inseok Lee.
+
+This fork changes the web frontend for touch play on phones: a fullscreen game view with translucent d-pad and skill buttons, and offline support through a service worker.
+
+---
 
 [Homepage](https://wie-site.dlunch.net) | [Try in browser](https://wie.dlunch.net)
 

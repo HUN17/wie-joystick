@@ -18,6 +18,9 @@ const main = async () => {
     integrations: [wasmIntegration()],
   });
   const native = isTauri();
+  if (!native && process.env.NODE_ENV === "production" && "serviceWorker" in navigator) {
+    void navigator.serviceWorker.register("sw.js").catch(error => console.error("Service worker registration failed", error));
+  }
   const backend = await initializeWie();
   document.documentElement.classList.add(backend.rendering === "native" ? "native" : "browser");
   const output = document.getElementById("player-output") as HTMLDivElement;
@@ -109,7 +112,7 @@ const main = async () => {
   try {
     const advertising = native
       ? await invoke<"adsense" | "adsense-test" | "sponsor">("initialize_advertising")
-      : "adsense";
+      : "sponsor";
     if (advertising === "sponsor") {
       document.querySelector(".adsbygoogle")!.remove();
       document.querySelector<HTMLElement>(".library-sponsor")!.hidden = false;
