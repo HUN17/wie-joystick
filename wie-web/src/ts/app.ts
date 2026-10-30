@@ -1,7 +1,8 @@
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Settings, createIcons } from "lucide";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Keyboard, Settings, createIcons } from "lucide";
 
 import { recordPageView } from "./analytics";
 import type { LibraryApp, PlayerSession, Wie } from "./backend";
+import { configStore } from "./config_store";
 import type { SettingsController } from "./settings";
 
 const KEY_MAP: Record<string, string> = {
@@ -26,21 +27,29 @@ const KEY_MAP: Record<string, string> = {
   NumpadEnter: "OK",
   Space: "OK",
 };
+// Fraction of the d-pad radius around its center where no direction is pressed.
+const DPAD_DEAD_ZONE = 0.2;
+const TOOLBAR_HIDE_DELAY_MS = 3000;
 const icons = {
   ArrowDown,
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  Keyboard,
   Settings,
 };
 
 export const runApp = (backend: Wie, app: LibraryApp, settings: SettingsController): Promise<boolean> => new Promise((resolve, reject) => {
   const playerView = document.getElementById("player-view") as HTMLElement;
+  const playerToolbar = playerView.querySelector(".player-toolbar") as HTMLElement;
+  const playerOutput = document.getElementById("player-output") as HTMLElement;
   const playerTitle = document.getElementById("player-title") as HTMLElement;
   const playerStatus = document.getElementById("player-status") as HTMLElement;
   const playerWarning = document.getElementById("player-warning") as HTMLElement;
   const backToLibrary = document.getElementById("back-to-library") as HTMLButtonElement;
   const appSettings = document.getElementById("app-settings") as HTMLButtonElement;
+  const keypadToggle = document.getElementById("keypad-toggle") as HTMLButtonElement;
+  const dpad = document.getElementById("dpad") as HTMLElement;
   const buttons = playerView.querySelectorAll<HTMLButtonElement>("button[data-key]");
 
   const abortController = new AbortController();
@@ -51,6 +60,8 @@ export const runApp = (backend: Wie, app: LibraryApp, settings: SettingsControll
   let ending = false;
   let start: Promise<PlayerSession | undefined>;
   let warningTimer: ReturnType<typeof setTimeout> | undefined;
+  let dpadPointer: number | undefined;
+  let toolbarTimer: ReturnType<typeof setTimeout> | undefined;
 
   playerTitle.textContent = app.title;
   playerWarning.hidden = true;
@@ -66,6 +77,8 @@ export const runApp = (backend: Wie, app: LibraryApp, settings: SettingsControll
     if (ending) return;
     ending = true;
     clearTimeout(warningTimer);
+    clearTimeout(toolbarTimer);
+    playerView.classList.remove("toolbar-hidden");
     abortController.abort();
     inputs.clear();
     updateControls();
@@ -97,15 +110,47 @@ export const runApp = (backend: Wie, app: LibraryApp, settings: SettingsControll
       if (!pressed) void session.key(key, true).catch(finish);
     }
   };
+  const resetDpad = () => {
+    dpadPointer = undefined;
+    delete dpad.dataset.pressed;
+  };
   const releaseKeys = () => {
     inputs.clear();
+    resetDpad();
     if (session && !ending) void session.releaseKeys().catch(finish);
   };
+  const showClassicKeypad = (classic: boolean) => {
+    playerView.classList.toggle("classic-keypad", classic);
+    keypadToggle.setAttribute("aria-pressed", String(classic));
+  };
+  showClassicKeypad(configStore.get("classicKeypad"));
+  const showToolbar = () => {
+    playerView.classList.remove("toolbar-hidden");
+    clearTimeout(toolbarTimer);
+    toolbarTimer = setTimeout(() => playerView.classList.add("toolbar-hidden"), TOOLBAR_HIDE_DELAY_MS);
+  };
+  const hideToolbar = () => {
+    clearTimeout(toolbarTimer);
+    playerView.classList.add("toolbar-hidden");
+  };
+  showToolbar();
 
   backToLibrary.addEventListener("click", () => { void finish(); }, { signal: abortController.signal });
   appSettings.addEventListener("click", () => {
     releaseKeys();
     settings.open();
+  }, { signal: abortController.signal });
+  // Tapping the game shows or hides the toolbar; touching the toolbar keeps it visible a while longer.
+  playerOutput.addEventListener("pointerdown", () => {
+    if (playerView.classList.contains("toolbar-hidden")) showToolbar();
+    else hideToolbar();
+  }, { signal: abortController.signal });
+  playerToolbar.addEventListener("pointerdown", showToolbar, { signal: abortController.signal });
+  keypadToggle.addEventListener("click", () => {
+    releaseKeys();
+    const classic = !playerView.classList.contains("classic-keypad");
+    configStore.set("classicKeypad", classic);
+    showClassicKeypad(classic);
   }, { signal: abortController.signal });
   window.addEventListener("blur", releaseKeys, { signal: abortController.signal });
   window.addEventListener("pagehide", () => { void finish(); }, { signal: abortController.signal });
@@ -132,6 +177,49 @@ export const runApp = (backend: Wie, app: LibraryApp, settings: SettingsControll
     button.addEventListener("pointercancel", releaseKey, { signal: abortController.signal });
     button.addEventListener("lostpointercapture", releaseKey, { signal: abortController.signal });
   }
+
+  // The pressed direction follows the finger, so it can slide between arms without lifting.
+  const moveDpad = (event: PointerEvent) => {
+    const rect = dpad.getBoundingClientRect();
+    const radius = rect.width / 2;
+    const dx = event.clientX - rect.left - radius;
+    const dy = event.clientY - rect.top - radius;
+    let key: string | undefined;
+    if (Math.hypot(dx, dy) >= radius * DPAD_DEAD_ZONE) {
+      if (Math.abs(dx) > Math.abs(dy)) key = dx > 0 ? "RIGHT" : "LEFT";
+      else key = dy > 0 ? "DOWN" : "UP";
+    }
+    if (key) dpad.dataset.pressed = key;
+    else delete dpad.dataset.pressed;
+    setKey("dpad", key);
+  };
+  const releaseDpad = (event: PointerEvent) => {
+    if (event.pointerId !== dpadPointer) return;
+    event.preventDefault();
+    setKey("dpad");
+    resetDpad();
+  };
+  dpad.addEventListener(
+    "pointerdown",
+    (event) => {
+      event.preventDefault();
+      if (dpadPointer !== undefined) return;
+      dpad.setPointerCapture(event.pointerId);
+      dpadPointer = event.pointerId;
+      moveDpad(event);
+    },
+    { signal: abortController.signal },
+  );
+  dpad.addEventListener(
+    "pointermove",
+    (event) => {
+      if (event.pointerId === dpadPointer) moveDpad(event);
+    },
+    { signal: abortController.signal },
+  );
+  dpad.addEventListener("pointerup", releaseDpad, { signal: abortController.signal });
+  dpad.addEventListener("pointercancel", releaseDpad, { signal: abortController.signal });
+  dpad.addEventListener("lostpointercapture", releaseDpad, { signal: abortController.signal });
 
   document.addEventListener(
     "keydown",

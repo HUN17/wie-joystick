@@ -6,6 +6,7 @@ const defaults = {
   pcmVolume: 0.5,
   helpDismissed: false,
   welcomeSeen: false,
+  classicKeypad: false,
 };
 
 type Config = typeof defaults;

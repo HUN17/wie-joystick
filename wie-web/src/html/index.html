@@ -4,7 +4,7 @@
     <meta
       charset="UTF-8"
       name="viewport"
-      content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+      content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -129,6 +129,9 @@
           <i data-lucide="arrow-left"></i>
         </button>
         <strong id="player-title" class="player-title"></strong>
+        <button id="keypad-toggle" class="icon-button" type="button" title="키패드 전환" data-i18n-title="toggleKeypad" aria-label="키패드 전환" data-i18n-aria-label="toggleKeypad" aria-pressed="false">
+          <i data-lucide="keyboard"></i>
+        </button>
         <button id="app-settings" class="icon-button" type="button" title="설정" data-i18n-title="settings" aria-label="설정" data-i18n-aria-label="settings">
           <i data-lucide="settings"></i>
         </button>
@@ -176,6 +179,28 @@
             <button data-key="0">0</button>
             <button data-key="#">#</button>
           </p>
+        </div>
+
+        <div class="gamepad" aria-label="게임패드" data-i18n-aria-label="gamepad">
+          <div id="dpad" class="dpad" aria-label="방향키" data-i18n-aria-label="arrowKeys">
+            <span data-direction="UP"><i data-lucide="arrow-up"></i></span>
+            <span data-direction="LEFT"><i data-lucide="arrow-left"></i></span>
+            <span data-direction="RIGHT"><i data-lucide="arrow-right"></i></span>
+            <span data-direction="DOWN"><i data-lucide="arrow-down"></i></span>
+          </div>
+          <div class="menu-buttons">
+            <button data-key="*">*</button>
+            <button data-key="CLR">CLR</button>
+          </div>
+          <div class="action-buttons">
+            <button data-key="5" class="attack">5</button>
+            <button data-key="1" style="--angle: 202.5deg">1</button>
+            <button data-key="3" style="--angle: 180deg">3</button>
+            <button data-key="7" style="--angle: 157.5deg">7</button>
+            <button data-key="9" style="--angle: 135deg">9</button>
+            <button data-key="0" style="--angle: 112.5deg">0</button>
+            <button data-key="#" style="--angle: 90deg">#</button>
+          </div>
         </div>
       </main>
     </section>

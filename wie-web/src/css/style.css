@@ -99,6 +99,7 @@ svg {
   display: flex;
   height: 100dvh;
   flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 .library-header {
@@ -587,6 +588,256 @@ svg {
   height: 16px;
 }
 
+.browser .player-toolbar {
+  grid-template-columns: 40px minmax(0, 1fr) 40px 40px;
+}
+
+.browser .player-view:not(.classic-keypad) .button-container,
+.player-view.classic-keypad .gamepad,
+.native .gamepad,
+.native #keypad-toggle {
+  display: none;
+}
+
+#keypad-toggle[aria-pressed="true"] {
+  color: var(--accent-dark);
+}
+
+/* Gamepad mode: the game fills the screen and translucent controls float over it. */
+.browser:has(.player-view:not([hidden], .classic-keypad)),
+.browser:has(.player-view:not([hidden], .classic-keypad)) body {
+  background: #000000;
+}
+
+.browser .player-view:not(.classic-keypad) {
+  /* Space kept between the bottom of the screen and both the game and the controls. */
+  --bottom-lift: 80px;
+  /* Space kept below the top safe area so the game clears the blurred system bars. */
+  --top-gap: 24px;
+  /* How far the controls sit below the bottom of the game. */
+  --controls-drop: 24px;
+  background: #000000;
+}
+
+.browser .player-view:not(.classic-keypad) .player-toolbar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 3;
+  width: 100%;
+  height: calc(var(--toolbar-height) + env(safe-area-inset-top));
+  padding: calc(6px + env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) 6px max(8px, env(safe-area-inset-left));
+  color: rgba(255, 255, 255, 0.85);
+  background: linear-gradient(rgba(0, 0, 0, 0.45), transparent);
+  transition: opacity 0.3s;
+}
+
+.browser .player-view.toolbar-hidden:not(.classic-keypad) .player-toolbar {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.browser .player-view:not(.classic-keypad) .icon-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.browser .player-view:not(.classic-keypad) .player-main {
+  height: 100dvh;
+}
+
+.browser .player-view:not(.classic-keypad) .canvas-wrapper {
+  position: fixed;
+  inset: calc(env(safe-area-inset-top) + var(--top-gap)) 0 var(--bottom-lift);
+  width: 100%;
+  aspect-ratio: auto;
+  background: #000000;
+}
+
+.browser .player-view:not(.classic-keypad) #canvas {
+  background: #000000;
+  object-position: top;
+  image-rendering: pixelated;
+}
+
+.browser .player-view:not(.classic-keypad) .player-warning {
+  position: fixed;
+  top: calc(var(--toolbar-height) + env(safe-area-inset-top));
+  z-index: 3;
+}
+
+.gamepad {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  display: grid;
+  /* The menu row sits under the d-pad, away from the right thumb resting near the skill buttons. */
+  grid-template-areas:
+    "dpad actions"
+    "menu .";
+  grid-template-columns: auto auto;
+  align-items: end;
+  justify-content: space-between;
+  gap: 8px;
+  /* The menu row (36px button + 8px gap) sits inside the bottom lift. */
+  padding: 16px max(16px, env(safe-area-inset-right)) calc(var(--bottom-lift) - 44px - var(--controls-drop) + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  pointer-events: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.dpad {
+  position: relative;
+  width: min(36vw, 40vh, 180px);
+  aspect-ratio: 1;
+  grid-area: dpad;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* Center square joining the four arms. */
+.dpad::before {
+  position: absolute;
+  inset: 33%;
+  background: rgba(255, 255, 255, 0.15);
+  content: "";
+}
+
+.dpad span {
+  position: absolute;
+  display: flex;
+  width: 34%;
+  height: 34%;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+  pointer-events: none;
+}
+
+.dpad svg {
+  width: 50%;
+  height: 50%;
+}
+
+.dpad [data-direction="UP"] {
+  top: 0;
+  left: 33%;
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+}
+
+.dpad [data-direction="DOWN"] {
+  bottom: 0;
+  left: 33%;
+  border-top: 0;
+  border-radius: 0 0 8px 8px;
+}
+
+.dpad [data-direction="LEFT"] {
+  top: 33%;
+  left: 0;
+  border-right: 0;
+  border-radius: 8px 0 0 8px;
+}
+
+.dpad [data-direction="RIGHT"] {
+  top: 33%;
+  right: 0;
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+}
+
+.dpad[data-pressed="UP"] [data-direction="UP"],
+.dpad[data-pressed="DOWN"] [data-direction="DOWN"],
+.dpad[data-pressed="LEFT"] [data-direction="LEFT"],
+.dpad[data-pressed="RIGHT"] [data-direction="RIGHT"] {
+  background: rgba(251, 191, 36, 0.55);
+  border-color: rgba(251, 191, 36, 0.8);
+}
+
+.menu-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  grid-area: menu;
+}
+
+/*
+ * Skill buttons sit on an arc of radius --radius around the attack button's center.
+ * The arc dips below the attack button by --below so the lowest skill button stays on screen.
+ */
+.action-buttons {
+  --radius: 128px;
+  --attack-size: 72px;
+  --skill-size: 44px;
+  --below: 36px;
+  position: relative;
+  width: calc(var(--radius) + (var(--attack-size) + var(--skill-size)) / 2);
+  height: calc(var(--radius) + (var(--attack-size) + var(--skill-size)) / 2 + var(--below));
+  grid-area: actions;
+}
+
+.action-buttons button {
+  position: absolute;
+  right: calc((var(--attack-size) - var(--skill-size)) / 2);
+  bottom: calc((var(--attack-size) - var(--skill-size)) / 2 + var(--below));
+  width: var(--skill-size);
+  height: var(--skill-size);
+  transform: rotate(calc(-1 * var(--angle))) translate(var(--radius)) rotate(var(--angle));
+}
+
+.action-buttons .attack {
+  right: 0;
+  bottom: var(--below);
+  width: var(--attack-size);
+  height: var(--attack-size);
+  font-size: 1.4rem;
+  transform: none;
+}
+
+.action-buttons button,
+.menu-buttons button {
+  margin: 0;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 650;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.menu-buttons button {
+  width: 36px;
+  height: 36px;
+  font-size: 0.7rem;
+}
+
+.action-buttons button:active,
+.menu-buttons button:active {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.action-buttons .attack {
+  background: rgba(251, 191, 36, 0.45);
+  border-color: rgba(251, 191, 36, 0.8);
+}
+
+.action-buttons .attack:active {
+  background: rgba(251, 191, 36, 0.75);
+}
+
 .native .player-toolbar {
   display: none;
 }
@@ -849,6 +1100,10 @@ kbd {
   .player-toolbar {
     grid-template-columns: 36px minmax(0, 1fr) 36px;
     padding-block: 2px;
+  }
+
+  .browser .player-toolbar {
+    grid-template-columns: 36px minmax(0, 1fr) 36px 36px;
   }
 
   .player-toolbar .icon-button {
