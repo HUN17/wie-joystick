@@ -107,7 +107,10 @@ pub fn extract_app_metadata(filename: &str, bytes: &[u8], file_type: FileType) -
         FileType::J2me => J2MEEmulator::jar_metadata(bytes)?.map(|(title, icon)| (title.clone(), title, icon)),
         FileType::Android => {
             let files = extract_zip(bytes)?;
-            AndroidEmulator::title(&files).map(|title| (title.clone(), title, AndroidEmulator::icon(&files)))
+            AndroidEmulator::archive_id(&files).map(|id| {
+                let title = AndroidEmulator::title(&files).unwrap_or_else(|| id.clone());
+                (id, title, AndroidEmulator::icon(&files))
+            })
         }
         _ => {
             let id = &filename[..filename.len() - 4];

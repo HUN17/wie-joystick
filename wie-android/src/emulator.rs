@@ -1,5 +1,4 @@
 use alloc::{
-    borrow::ToOwned,
     boxed::Box,
     collections::BTreeMap,
     string::{String, ToString},
@@ -87,15 +86,18 @@ impl AndroidEmulator {
         Ok(Self { core, system })
     }
 
+    /// Stable app ID; it also namespaces the app's saves, so it must not change.
+    pub fn archive_id(files: &BTreeMap<String, Vec<u8>>) -> Option<String> {
+        Self::library_name(files)
+    }
+
+    /// The APK's launcher label, falling back to the game library name.
     pub fn title(files: &BTreeMap<String, Vec<u8>>) -> Option<String> {
-        Self::library_name(files).map(|x| x.to_owned())
+        crate::apk_info::label(files).or_else(|| Self::library_name(files))
     }
 
     pub fn icon(files: &BTreeMap<String, Vec<u8>>) -> Option<Vec<u8>> {
-        files
-            .get("res/drawable-hdpi-v4/icon.png")
-            .or_else(|| files.get("res/drawable/icon.png"))
-            .cloned()
+        crate::apk_info::icon(files)
     }
 }
 
