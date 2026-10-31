@@ -51,6 +51,8 @@ struct RuntimeGlobals {
     cwd: u32,
     gl_state: u32,
     clip_table: u32,
+    /// Content ID string of a carrier purchase waiting for its result, or zero.
+    pending_purchase: u32,
 }
 
 #[derive(Clone)]
@@ -186,10 +188,25 @@ pub async fn start(core: &mut ArmCore, system: &mut System, library: &[u8], vfs:
     let native_loop = native("nativeLoop")?;
     let native_key = native("nativeKeyHandleEvent")?;
     let native_touch = native("nativeTouchHandleEvent")?;
+    // The carrier billing service is gone, so purchases are confirmed locally (result 0 is success).
+    let native_purchase_result = library
+        .exports
+        .get("Java_co_kr_eamobile_mtx_CarrierFuncActivity_nativeResultMTX")
+        .copied();
+    let activity = env.new_object(core, "co/kr/eamobile/mtx/CarrierFuncActivity")?;
     let mut frame: u64 = 0;
     loop {
         if frame.is_multiple_of(600) {
             tracing::info!("nativeLoop frame {frame}");
+        }
+
+        let pending_purchase = context.globals(core)?.pending_purchase;
+        if pending_purchase != 0 {
+            context.update_globals(core, |x| x.pending_purchase = 0)?;
+            if let Some(native_purchase_result) = native_purchase_result {
+                tracing::info!("Confirming purchase {}", jni::read_java_string(core, pending_purchase)?);
+                let _: u32 = call(core, native_purchase_result, &[env.ptr(), activity, pending_purchase, 0, 0]).await?;
+            }
         }
 
         loop {

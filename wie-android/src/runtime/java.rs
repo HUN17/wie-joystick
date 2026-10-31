@@ -53,6 +53,13 @@ pub async fn call_java_method(
         }
         "clipResumeSound" | "clipResumeMusic" | "clipResume" => JavaValue(audio::resume(core, context, args[0].0 as u32)? as u32 as u64),
         "clipFreeSound" | "clipFreeMusic" | "clipFree" => JavaValue(audio::free_clip(core, context, args[0].0 as u32)? as u32 as u64),
+        "requestMTX" => {
+            // requestMTX(gameId, contentId, pid); the result is delivered before the next frame.
+            let content_id = args[1].0 as u32;
+            tracing::info!("Purchase requested: {}", read_java_string(core, content_id)?);
+            context.update_globals(core, |x| x.pending_purchase = content_id)?;
+            JavaValue(0)
+        }
         "getUniqueNumberFromStrings" => {
             let name = read_java_string(core, args[0].0 as u32)?;
             JavaValue(asset_id(core, context, &name)? as u64)
