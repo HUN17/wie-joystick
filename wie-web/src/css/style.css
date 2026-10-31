@@ -1198,10 +1198,37 @@ kbd {
 }
 
 .browser .player-view.touch-input .canvas-wrapper {
-  inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  inset: 0;
+  width: auto;
+  height: auto;
 }
 
+/* The game keeps its aspect ratio, centered on the screen. */
 .browser .player-view.touch-input #canvas {
   object-position: center;
   touch-action: none;
+}
+
+/* Android games are landscape: while the phone is upright, the player is laid out sideways
+   (content top along the phone's right edge), so it reads correctly with the phone turned left. */
+@media (orientation: portrait) {
+  .browser .player-view.touch-input {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100dvh;
+    height: 100vw;
+    transform-origin: top left;
+    transform: translateX(100vw) rotate(90deg);
+  }
+
+  .browser .player-view.touch-input .player-main {
+    height: 100%;
+  }
+
+  /* The phone's top edge, with the Dynamic Island, is now the left side. */
+  .browser .player-view.touch-input .player-toolbar {
+    height: var(--toolbar-height);
+    padding: 6px 8px 6px max(8px, env(safe-area-inset-top));
+  }
 }

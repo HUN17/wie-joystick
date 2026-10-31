@@ -228,14 +228,20 @@ export const runApp = (backend: Wie, app: LibraryApp, settings: SettingsControll
   dpad.addEventListener("pointercancel", releaseDpad, { signal: abortController.signal });
   dpad.addEventListener("lostpointercapture", releaseDpad, { signal: abortController.signal });
 
-  // Maps a pointer to screen pixels of the centered, aspect-preserving canvas image.
+  // The stylesheet turns the touch-mode player sideways while the phone is upright.
+  const portrait = window.matchMedia("(orientation: portrait)");
+  // Maps a pointer to screen pixels of the centered, aspect-preserving canvas image, undoing the sideways layout.
   const canvasPoint = (event: PointerEvent): [number, number] | undefined => {
     const canvas = document.getElementById("canvas") as HTMLCanvasElement | null;
     if (!canvas || canvas.width === 0 || canvas.height === 0) return undefined;
     const rect = canvas.getBoundingClientRect();
-    const scale = Math.min(rect.width / canvas.width, rect.height / canvas.height);
-    const x = (event.clientX - rect.left - (rect.width - canvas.width * scale) / 2) / scale;
-    const y = (event.clientY - rect.top - (rect.height - canvas.height * scale) / 2) / scale;
+    const [u, v, width, height] = portrait.matches
+      ? [event.clientY - rect.top, rect.right - event.clientX, rect.height, rect.width]
+      : [event.clientX - rect.left, event.clientY - rect.top, rect.width, rect.height];
+    if (width === 0 || height === 0) return undefined;
+    const scale = Math.min(width / canvas.width, height / canvas.height);
+    const x = (u - (width - canvas.width * scale) / 2) / scale;
+    const y = (v - (height - canvas.height * scale) / 2) / scale;
     return [Math.min(Math.max(Math.floor(x), -1), canvas.width), Math.min(Math.max(Math.floor(y), -1), canvas.height)];
   };
   const insideCanvas = ([x, y]: [number, number]) => {
