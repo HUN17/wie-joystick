@@ -43,6 +43,20 @@ export const initializeWie = async (): Promise<Wie> => {
     deleteApp(id) {
       return store.delete(id);
     },
+    updateApp(app) {
+      return store.update(app);
+    },
+    async originalAppMetadata(id) {
+      const [app, archive] = await Promise.all([store.getApp(id), store.getArchive(id)]);
+      if (!app || !archive) throw new Error(t("appFileMissing"));
+      const extracted = extractAppMetadata(app.filename, archive);
+      try {
+        const icon = extracted.icon;
+        return { title: extracted.title, icon: icon.length ? new Blob([new Uint8Array(icon).buffer]) : undefined };
+      } finally {
+        extracted.free();
+      }
+    },
     async readSettings() {
       return {
         midiVolume: configStore.get("midiVolume"),

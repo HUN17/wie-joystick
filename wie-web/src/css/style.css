@@ -1364,3 +1364,47 @@ kbd {
   font-size: 2.125rem;
   line-height: 1.2;
 }
+
+/* App editor: icon preview beside the name field, then icon actions. */
+.edit-app-fields {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 8px 0 16px;
+}
+
+.edit-app-icon {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
+  font-size: 1.75rem;
+}
+
+.edit-app-name {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.edit-app-name input {
+  min-height: 44px;
+  padding: 8px 12px;
+  color: var(--fg);
+  background: var(--raised-bg);
+  border: 0;
+  border-radius: 10px;
+  font-size: 1rem;
+}
+
+.edit-app-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.edit-app-actions button {
+  flex: 1;
+}

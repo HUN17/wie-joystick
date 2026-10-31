@@ -37,6 +37,10 @@ export interface Wie {
   listApps(): Promise<LibraryApp[]>;
   importApp(file: File): Promise<void>;
   deleteApp(id: string): Promise<void>;
+  /** Saves an edited title or icon; absent when the backend cannot edit apps. */
+  updateApp?(app: LibraryApp): Promise<void>;
+  /** The title and icon read from the app file itself. */
+  originalAppMetadata?(id: string): Promise<{ title: string; icon?: Blob }>;
   readSettings(): Promise<Settings>;
   writeSettings(settings: Settings): Promise<void>;
   startApp(id: string, onEvent: (event: SessionEvent) => void): Promise<PlayerSession | undefined>;

@@ -41,7 +41,7 @@
             </button>
             <button id="menu-manage-apps" type="button" role="menuitem">
               <i data-lucide="trash-2"></i>
-              <span id="manage-apps-label">앱 삭제</span>
+              <span id="manage-apps-label">앱 편집</span>
             </button>
             <button id="menu-settings" type="button" role="menuitem">
               <i data-lucide="settings"></i>
@@ -223,7 +223,7 @@
     <dialog id="delete-dialog" class="app-dialog">
       <form method="dialog">
         <header class="dialog-header">
-          <h2 data-i18n-text="deleteApps">앱 삭제</h2>
+          <h2 data-i18n-text="delete">삭제</h2>
           <button class="icon-button dialog-close" value="cancel" title="닫기" data-i18n-title="close" aria-label="닫기" data-i18n-aria-label="close">
             <i data-lucide="x"></i>
           </button>
@@ -232,6 +232,39 @@
         <footer class="dialog-actions">
           <button class="secondary-command" value="cancel" data-i18n-text="cancel">취소</button>
           <button id="confirm-delete" data-i18n-text="delete" class="danger-command" type="button">삭제</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="edit-dialog" class="app-dialog">
+      <form method="dialog">
+        <header class="dialog-header">
+          <h2 data-i18n-text="editApp">앱 편집</h2>
+          <button class="icon-button dialog-close" value="cancel" title="닫기" data-i18n-title="close" aria-label="닫기" data-i18n-aria-label="close">
+            <i data-lucide="x"></i>
+          </button>
+        </header>
+        <div class="edit-app-fields">
+          <span id="edit-app-icon" class="app-icon edit-app-icon"></span>
+          <label class="edit-app-name">
+            <span data-i18n-text="appName">이름</span>
+            <input id="edit-app-title" type="text" maxlength="40" autocomplete="off" />
+          </label>
+        </div>
+        <div class="edit-app-actions">
+          <button id="choose-app-icon" class="secondary-command" type="button">
+            <i data-lucide="image"></i>
+            <span data-i18n-text="chooseIcon">아이콘 선택</span>
+          </button>
+          <button id="restore-app" class="secondary-command" type="button">
+            <i data-lucide="rotate-ccw"></i>
+            <span data-i18n-text="restoreOriginal">원래대로</span>
+          </button>
+        </div>
+        <input id="app-icon-input" type="file" accept="image/*" hidden />
+        <footer class="dialog-actions">
+          <button class="secondary-command" value="cancel" data-i18n-text="cancel">취소</button>
+          <button id="save-app" class="primary-command" type="button" data-i18n-text="save">저장</button>
         </footer>
       </form>
     </dialog>

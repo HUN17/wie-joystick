@@ -59,6 +59,16 @@ export class AppLibraryStore {
     });
   }
 
+  public update(metadata: LibraryApp): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction("apps", "readwrite");
+      transaction.objectStore("apps").put(metadata);
+
+      transaction.oncomplete = () => resolve();
+      transaction.onabort = () => reject(transaction.error);
+    });
+  }
+
   public delete(id: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(["apps", "archives"], "readwrite");

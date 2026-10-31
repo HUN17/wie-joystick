@@ -1,4 +1,4 @@
-import { Check, CircleHelp, EllipsisVertical, Globe2, Plus, Settings, Trash2, Upload, X, createIcons } from "lucide";
+import { Check, CircleHelp, EllipsisVertical, Globe2, Image, Pencil, Plus, RotateCcw, Settings, Trash2, Upload, X, createIcons } from "lucide";
 
 import type { LibraryApp, Wie } from "./backend";
 import { t } from "./i18n";
@@ -10,7 +10,10 @@ const icons = {
   CircleHelp,
   EllipsisVertical,
   Globe2,
+  Image,
+  Pencil,
   Plus,
+  RotateCcw,
   Settings,
   Trash2,
   Upload,
@@ -40,6 +43,14 @@ export const initializeLibrary = async (backend: Wie, launchApp: (app: LibraryAp
   const hideHelp = document.getElementById("hide-help") as HTMLInputElement;
   const welcomeDialog = document.getElementById("welcome-dialog") as HTMLDialogElement;
   const dismissWelcome = document.getElementById("dismiss-welcome") as HTMLButtonElement;
+  const editDialog = document.getElementById("edit-dialog") as HTMLDialogElement;
+  const editAppIcon = document.getElementById("edit-app-icon") as HTMLSpanElement;
+  const editAppTitle = document.getElementById("edit-app-title") as HTMLInputElement;
+  const chooseAppIcon = document.getElementById("choose-app-icon") as HTMLButtonElement;
+  const restoreApp = document.getElementById("restore-app") as HTMLButtonElement;
+  const appIconInput = document.getElementById("app-icon-input") as HTMLInputElement;
+  const saveApp = document.getElementById("save-app") as HTMLButtonElement;
+  const canEdit = backend.updateApp !== undefined;
 
   hideHelp.checked = settings.get("helpDismissed");
 
@@ -47,6 +58,8 @@ export const initializeLibrary = async (backend: Wie, launchApp: (app: LibraryAp
   let manageMode = false;
   let appStarting = false;
   let pendingDelete: LibraryApp;
+  let editingApp: LibraryApp | undefined;
+  let editingIcon: Blob | undefined;
   const iconUrls = new Set<string>();
   let dragPointer: number | undefined;
   let dragStartX = 0;
@@ -93,6 +106,44 @@ export const initializeLibrary = async (backend: Wie, launchApp: (app: LibraryAp
     });
   };
 
+  const showEditingIcon = () => {
+    editAppIcon.replaceChildren();
+    if (editingIcon) {
+      const url = URL.createObjectURL(editingIcon);
+      const image = document.createElement("img");
+      image.alt = "";
+      image.src = url;
+      image.addEventListener("load", () => URL.revokeObjectURL(url), { once: true });
+      image.addEventListener("error", () => URL.revokeObjectURL(url), { once: true });
+      editAppIcon.appendChild(image);
+    } else {
+      editAppIcon.textContent = Array.from(editAppTitle.value.trim())[0] ?? "?";
+    }
+  };
+
+  const openEditor = (app: LibraryApp) => {
+    editingApp = app;
+    editingIcon = app.icon;
+    editAppTitle.value = app.title;
+    showEditingIcon();
+    editDialog.showModal();
+  };
+
+  // Square-crops and scales a picture to a library icon.
+  const iconFromImage = async (file: Blob): Promise<Blob> => {
+    const bitmap = await createImageBitmap(file);
+    const size = 256;
+    const side = Math.min(bitmap.width, bitmap.height);
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    canvas.getContext("2d")!.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, size, size);
+    bitmap.close();
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error("Could not encode the icon"))), "image/png");
+    });
+  };
+
   const renderLibrary = (targetPageIndex = currentPageIndex) => {
     for (const iconUrl of iconUrls) {
       URL.revokeObjectURL(iconUrl);
@@ -106,7 +157,7 @@ export const initializeLibrary = async (backend: Wie, launchApp: (app: LibraryAp
 
     const oldManageIcon = menuManageApps.querySelector("svg, i");
     const manageIcon = document.createElement("i");
-    manageIcon.dataset.lucide = manageMode ? "check" : "trash-2";
+    manageIcon.dataset.lucide = manageMode ? "check" : "pencil";
     oldManageIcon?.replaceWith(manageIcon);
 
     const entries: Array<LibraryApp | undefined> = [...apps, undefined];
@@ -145,7 +196,8 @@ export const initializeLibrary = async (backend: Wie, launchApp: (app: LibraryAp
         launchButton.className = "app-launch";
         launchButton.type = "button";
         launchButton.title = app.title;
-        launchButton.disabled = manageMode;
+        // In edit mode a tap opens the editor instead of the game.
+        launchButton.disabled = manageMode && !canEdit;
 
         const icon = document.createElement("span");
         icon.className = "app-icon";
@@ -184,6 +236,10 @@ export const initializeLibrary = async (backend: Wie, launchApp: (app: LibraryAp
         title.textContent = app.title;
         launchButton.append(icon, title);
         launchButton.addEventListener("click", async () => {
+          if (manageMode) {
+            openEditor(app);
+            return;
+          }
           if (appStarting) {
             return;
           }
@@ -238,6 +294,7 @@ export const initializeLibrary = async (backend: Wie, launchApp: (app: LibraryAp
     createIcons({ icons, root: libraryView });
     createIcons({ icons, root: importDialog });
     createIcons({ icons, root: deleteDialog });
+    createIcons({ icons, root: editDialog });
     createIcons({ icons, root: helpDialog });
     createIcons({ icons, root: welcomeDialog });
   };
@@ -435,6 +492,50 @@ export const initializeLibrary = async (backend: Wie, launchApp: (app: LibraryAp
       window.alert(t("deleteFailed", { error: String(error) }));
     } finally {
       confirmDelete.disabled = false;
+    }
+  });
+  editAppTitle.addEventListener("input", () => {
+    if (!editingIcon) showEditingIcon();
+  });
+  chooseAppIcon.addEventListener("click", () => appIconInput.click());
+  appIconInput.addEventListener("change", async () => {
+    const file = appIconInput.files?.[0];
+    appIconInput.value = "";
+    if (!file) return;
+    try {
+      editingIcon = await iconFromImage(file);
+      showEditingIcon();
+    } catch (error) {
+      window.alert(t("editFailed", { error: String(error) }));
+    }
+  });
+  restoreApp.addEventListener("click", async () => {
+    if (!editingApp || !backend.originalAppMetadata) return;
+    restoreApp.disabled = true;
+    try {
+      const original = await backend.originalAppMetadata(editingApp.id);
+      editAppTitle.value = original.title;
+      editingIcon = original.icon;
+      showEditingIcon();
+    } catch (error) {
+      window.alert(t("editFailed", { error: String(error) }));
+    } finally {
+      restoreApp.disabled = false;
+    }
+  });
+  saveApp.addEventListener("click", async () => {
+    const title = editAppTitle.value.trim();
+    if (!editingApp || !backend.updateApp || !title) return;
+    saveApp.disabled = true;
+    try {
+      await backend.updateApp({ ...editingApp, title, icon: editingIcon });
+      apps = await backend.listApps();
+      editDialog.close();
+      renderLibrary();
+    } catch (error) {
+      window.alert(t("editFailed", { error: String(error) }));
+    } finally {
+      saveApp.disabled = false;
     }
   });
   dismissWelcome.addEventListener("click", async () => {
