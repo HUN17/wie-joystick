@@ -238,6 +238,12 @@ impl ArmEngine for Arm32CpuEngine {
         }
     }
 
+    fn set_code_mode(&mut self, thumb: Option<bool>) {
+        if let Some(aot) = &mut self.aot {
+            aot.set_mode(thumb);
+        }
+    }
+
     fn begin_preparation(&mut self) -> Result<Option<PreparationFuture>> {
         if let Some(aot) = &mut self.aot {
             return aot.begin(&self.mem);

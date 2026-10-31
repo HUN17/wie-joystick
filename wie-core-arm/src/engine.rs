@@ -30,6 +30,7 @@ pub trait ArmEngine: Send + AsAny {
     fn mem_read(&mut self, address: u32, size: usize, result: &mut [u8]) -> Result<usize>;
     fn is_mapped(&self, address: u32, size: usize) -> bool;
     fn record_image(&mut self, address: u32, size: usize);
+    fn set_code_mode(&mut self, thumb: Option<bool>);
     fn begin_preparation(&mut self) -> Result<Option<PreparationFuture>>;
     fn is_preparing(&self) -> bool;
     fn finish_preparation(&mut self, result: Result<CompiledArtifact>);

@@ -551,6 +551,10 @@ impl ArmEngine for DebuggedArm32CpuEngine {
         self.debug.cpu.lock().record_image(address, size);
     }
 
+    fn set_code_mode(&mut self, thumb: Option<bool>) {
+        self.debug.cpu.lock().set_code_mode(thumb);
+    }
+
     fn begin_preparation(&mut self) -> WieResult<Option<PreparationFuture>> {
         self.debug.cpu.lock().begin_preparation()
     }

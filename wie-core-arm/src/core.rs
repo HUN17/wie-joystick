@@ -1,5 +1,5 @@
 use alloc::{borrow::ToOwned, boxed::Box, collections::BTreeMap, format, string::String, sync::Arc, vec, vec::Vec};
-use core::{mem::size_of, slice::from_ref};
+use core::{mem::size_of, ops::Range, slice::from_ref};
 
 use bytemuck::cast_slice;
 use spin::Mutex;
@@ -131,6 +131,21 @@ impl ArmCore {
             .mem_map(address, map_size.next_multiple_of(0x1000), MemoryPermission::ReadWriteExecute);
         inner.engine.mem_write(address, data)?;
         inner.engine.record_image(address, data.len());
+
+        Ok(())
+    }
+
+    /// Maps `data` like [`Self::load`], but submits only `code` for ahead-of-time compilation,
+    /// decoded as Thumb (`Some(true)`), ARM (`Some(false)`) or both (`None`).
+    pub fn load_with_code(&mut self, data: &[u8], address: u32, map_size: usize, code: Range<u32>, thumb: Option<bool>) -> Result<()> {
+        let mut inner = self.inner.lock();
+
+        inner
+            .engine
+            .mem_map(address, map_size.next_multiple_of(0x1000), MemoryPermission::ReadWriteExecute);
+        inner.engine.mem_write(address, data)?;
+        inner.engine.record_image(code.start, (code.end - code.start) as usize);
+        inner.engine.set_code_mode(thumb);
 
         Ok(())
     }

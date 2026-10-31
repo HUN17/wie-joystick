@@ -32,6 +32,8 @@ pub(crate) struct Aot {
     pub state: PreparationState,
     pub entries: HashMap<RegionKey, CompiledHandle>,
     ranges: Vec<Range<u64>>,
+    /// Instruction set for the initial images: `Some(thumb)` for one, `None` for both.
+    mode: Option<bool>,
     regions: Vec<CompiledRegion>,
     invalidated: Vec<ManifestRegion>,
     recompilations: Vec<Recompilation>,
@@ -44,6 +46,7 @@ impl Aot {
             state: PreparationState::Loading,
             entries: HashMap::new(),
             ranges: Vec::new(),
+            mode: None,
             regions: Vec::new(),
             invalidated: Vec::new(),
             recompilations: Vec::new(),
@@ -56,11 +59,15 @@ impl Aot {
         }
     }
 
+    pub fn set_mode(&mut self, thumb: Option<bool>) {
+        self.mode = thumb;
+    }
+
     pub fn begin(&mut self, memory: &EmulatedMemory) -> Result<Option<PreparationFuture>> {
         if self.state != PreparationState::Loading {
             return Ok(None);
         }
-        let request = compile_request(memory, core::mem::take(&mut self.ranges), None)?;
+        let request = compile_request(memory, core::mem::take(&mut self.ranges), self.mode)?;
         if request.images.is_empty() {
             self.state = PreparationState::Ready;
             return Ok(None);

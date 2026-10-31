@@ -40,7 +40,27 @@ pub fn load_shared_library(
         let file = &data[segment.p_offset as usize..(segment.p_offset + segment.p_filesz) as usize];
         image[segment.p_vaddr as usize..segment.p_vaddr as usize + file.len()].copy_from_slice(file);
     }
-    core.load(&image, base, image_size)?;
+
+    // Only the PLT and text are code; compiling data as instructions in both instruction sets
+    // made the ahead-of-time module several times larger than needed.
+    let (headers, names) = elf
+        .section_headers_with_strtab()
+        .map_err(|x| WieError::FatalError(format!("Failed to read section headers: {x}")))?;
+    let code = headers.zip(names).and_then(|(headers, names)| {
+        let ranges = headers
+            .iter()
+            .filter(|x| matches!(names.get(x.sh_name as usize), Ok(".plt" | ".text")))
+            .map(|x| x.sh_addr as u32..(x.sh_addr + x.sh_size) as u32)
+            .collect::<Vec<_>>();
+        Some(ranges.iter().map(|x| x.start).min()?..ranges.iter().map(|x| x.end).max()?)
+    });
+    match code {
+        // Android armeabi libraries built by the NDK of that era are ARM-only.
+        Some(code) if !has_thumb_functions(&elf)? => {
+            core.load_with_code(&image, base, image_size, base + code.start..base + code.end, Some(false))?
+        }
+        _ => core.load(&image, base, image_size)?,
+    }
 
     tracing::debug!("Loaded shared library at {base:#x}, size {image_size:#x}");
 
@@ -108,4 +128,17 @@ pub fn load_shared_library(
     }
 
     Ok(SharedLibrary { exports, init_array })
+}
+
+/// Thumb function symbols have their low address bit set.
+fn has_thumb_functions(elf: &ElfBytes<AnyEndian>) -> Result<bool> {
+    let Some((symbols, _)) = elf
+        .dynamic_symbol_table()
+        .map_err(|x| WieError::FatalError(format!("Failed to read dynamic symbols: {x}")))?
+    else {
+        return Ok(false);
+    };
+    Ok(symbols
+        .iter()
+        .any(|x| x.st_symtype() == abi::STT_FUNC && x.st_shndx != abi::SHN_UNDEF && x.st_value & 1 != 0))
 }
