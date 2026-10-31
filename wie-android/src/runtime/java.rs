@@ -4,7 +4,7 @@ use wie_core_arm::ArmCore;
 use wie_util::{ByteWrite, Result, read_generic, write_generic};
 
 use super::{
-    AndroidContext, MAX_ASSETS, VFS_FD,
+    AndroidContext, MAX_ASSETS, VFS_FD, audio,
     jni::{array_data, array_length, new_string, read_java_string},
     read_string,
 };
@@ -40,6 +40,19 @@ pub async fn call_java_method(
         "getVolume" | "getSoundVolume" | "getMusicVolume" => JavaValue(100),
         "isNetworkAvailable" => JavaValue(1),
         "isFBOSupported" | "isNetworkRoaming" | "isAirplaneModeOn" => JavaValue(0),
+        "putSoundClip" | "putMusicClip" => {
+            let (clip, offset, length) = (args[0].0 as u32, args[1].0, args[2].0);
+            JavaValue(audio::put_clip(core, context, clip, offset, length)? as u32 as u64)
+        }
+        "clipPlaySound" | "clipPlayMusic" | "clipPlay" => {
+            let (clip, repeat) = (args[0].0 as u32, args[1].0 != 0);
+            JavaValue(audio::play(core, context, clip, repeat)? as u32 as u64)
+        }
+        "clipStopSound" | "clipStopMusic" | "clipStop" | "clipPauseSound" | "clipPauseMusic" | "clipPause" => {
+            JavaValue(audio::stop(core, context, args[0].0 as u32)? as u32 as u64)
+        }
+        "clipResumeSound" | "clipResumeMusic" | "clipResume" => JavaValue(audio::resume(core, context, args[0].0 as u32)? as u32 as u64),
+        "clipFreeSound" | "clipFreeMusic" | "clipFree" => JavaValue(audio::free_clip(core, context, args[0].0 as u32)? as u32 as u64),
         "getUniqueNumberFromStrings" => {
             let name = read_java_string(core, args[0].0 as u32)?;
             JavaValue(asset_id(core, context, &name)? as u64)

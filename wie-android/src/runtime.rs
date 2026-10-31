@@ -1,3 +1,4 @@
+mod audio;
 mod file;
 mod format;
 mod gl;
@@ -49,6 +50,7 @@ struct RuntimeGlobals {
     fd_table: u32,
     cwd: u32,
     gl_state: u32,
+    clip_table: u32,
 }
 
 #[derive(Clone)]
@@ -81,6 +83,9 @@ pub struct DisplayConfig {
 pub async fn start(core: &mut ArmCore, system: &mut System, library: &[u8], vfs: Vec<u8>, display: DisplayConfig) -> Result<()> {
     let ptr_globals = Allocator::alloc(core, size_of::<RuntimeGlobals>() as u32)?;
     let asset_table = Allocator::alloc(core, MAX_ASSETS * 4)?;
+    let clip_table_size = audio::MAX_CLIPS * size_of::<audio::ClipEntry>() as u32;
+    let clip_table = Allocator::alloc(core, clip_table_size)?;
+    core.write_bytes(clip_table, &alloc::vec![0; clip_table_size as usize])?;
     let gl_state = Allocator::alloc(core, size_of::<gl::GlState>() as u32)?;
     write_generic(core, gl_state, <gl::GlState as Zeroable>::zeroed())?;
     let fd_table = Allocator::alloc(core, file::MAX_FILES * size_of::<file::OpenFile>() as u32)?;
@@ -94,6 +99,7 @@ pub async fn start(core: &mut ArmCore, system: &mut System, library: &[u8], vfs:
             asset_table,
             fd_table,
             gl_state,
+            clip_table,
             ..Zeroable::zeroed()
         },
     )?;

@@ -7597,6 +7597,7 @@ dependencies = [
  "bytemuck",
  "elf",
  "spin",
+ "symphonia",
  "tracing",
  "wie-backend",
  "wie-core-arm",

@@ -36,6 +36,28 @@ impl Audio {
         Ok(audio_handle)
     }
 
+    /// Loads decoded interleaved PCM as a single wave event.
+    pub fn load_wave(&mut self, channels: u8, sampling_rate: u32, samples: Vec<i16>) -> AudioHandle {
+        let frames = samples.len() as u64 / u64::from(channels.max(1));
+        let sequence = AudioSequence {
+            duration: frames * 1000 / u64::from(sampling_rate.max(1)),
+            events: vec![TimedAudioEvent {
+                time: 0,
+                data: AudioEventData::Wave {
+                    channels,
+                    sampling_rate,
+                    samples,
+                },
+            }],
+        };
+
+        let audio_handle = self.last_audio_handle;
+        self.last_audio_handle += 1;
+        self.files.insert(audio_handle, Arc::new(sequence));
+
+        audio_handle
+    }
+
     pub fn play(&mut self, audio_handle: AudioHandle, repeat: bool) -> Result<(), AudioError> {
         let sequence = self.files.get(&audio_handle).cloned().ok_or(AudioError::InvalidHandle)?;
 
