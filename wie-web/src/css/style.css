@@ -121,28 +121,6 @@ svg {
   gap: 12px;
 }
 
-.brand-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.16);
-}
-
-.brand-name {
-  color: var(--accent-dark);
-  background: linear-gradient(
-    135deg,
-    var(--gradient-start),
-    var(--gradient-end)
-  );
-  background-clip: text;
-  font-size: 2rem;
-  font-weight: 800;
-  line-height: 1;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
 .brand-block h1 {
   margin: 0;
   color: var(--muted);
@@ -152,19 +130,6 @@ svg {
 
 .library-menu-wrap {
   position: relative;
-}
-
-.library-language {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  margin-left: auto;
-}
-
-#library-language-preference {
-  width: 100px;
-  font-size: 0.875rem;
 }
 
 .library-menu {
@@ -435,9 +400,8 @@ svg {
   border-radius: 4px;
 }
 
-.library-ad {
+.library-footer {
   width: min(100%, 800px);
-  min-height: 90px;
   flex-shrink: 0;
   margin: auto auto 0;
   padding: 12px 28px 20px;
@@ -448,17 +412,6 @@ svg {
   color: var(--muted);
   font-size: 0.75rem;
   text-align: center;
-}
-
-.library-sponsor {
-  display: block;
-  padding: 18px;
-  color: var(--fg);
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  text-align: center;
-  text-underline-offset: 4px;
 }
 
 .player-view {
@@ -970,10 +923,6 @@ svg {
   border-radius: 4px;
 }
 
-#library-view:not([hidden]) ~ #settings-dialog .language-setting {
-  display: none;
-}
-
 .welcome-steps {
   display: grid;
   gap: 12px;
@@ -1128,23 +1077,14 @@ kbd {
   }
 
   .library-header {
-    padding: 4px 18px;
+    /* Breathing room below the status bar on phones. */
+    padding: 20px 18px 8px;
   }
 
   .brand-block {
     display: grid;
     grid-template-columns: 32px auto;
     gap: 0 8px;
-  }
-
-  .brand-icon {
-    width: 32px;
-    height: 32px;
-    grid-row: span 2;
-  }
-
-  .brand-name {
-    font-size: 1.5rem;
   }
 
   .brand-block h1 {
@@ -1232,4 +1172,195 @@ kbd {
     height: var(--toolbar-height);
     padding: 6px 8px 6px max(8px, env(safe-area-inset-top));
   }
+}
+
+/* iOS-style dark theme: system dark palette, SF typography and rounded, borderless surfaces. */
+:root {
+  --bg: #000000;
+  --fg: #ffffff;
+  --muted: #8e8e93;
+  --accent: #ffd60a;
+  --accent-light: #ffe55c;
+  --accent-dark: #ffcc00;
+  --gradient-start: #ffd60a;
+  --gradient-end: #ff9f0a;
+  --card-bg: #1c1c1e;
+  --raised-bg: #2c2c2e;
+  --border: #38383a;
+  color-scheme: dark;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    system-ui,
+    Pretendard,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+  accent-color: var(--accent);
+}
+
+.icon-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.brand-block h1 {
+  color: var(--fg);
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.language-preference {
+  color: var(--fg);
+  background: var(--card-bg);
+  border: 0;
+  border-radius: 10px;
+}
+
+.library-menu {
+  padding: 6px 0;
+  background: rgba(37, 37, 39, 0.92);
+  border: 0.5px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+}
+
+.library-menu button,
+.library-menu a {
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 0;
+}
+
+.library-menu > * + * {
+  border-top: 0.5px solid rgba(255, 255, 255, 0.1);
+}
+
+.library-menu button:hover,
+.library-menu a:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.library-menu button:disabled {
+  color: #636366;
+}
+
+.library-menu img {
+  filter: invert(1);
+}
+
+.app-icon {
+  color: var(--muted);
+  background: var(--raised-bg);
+  border: 0;
+  border-radius: 22%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.app-launch:hover .app-icon {
+  transform: none;
+  box-shadow: 0 4px 16px rgba(255, 214, 10, 0.25);
+}
+
+.app-launch:active .app-icon {
+  filter: brightness(0.7);
+}
+
+.app-title {
+  color: var(--fg);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.add-app-icon {
+  color: var(--muted);
+  background: transparent;
+  border: 2px dashed #48484a;
+  box-shadow: none;
+}
+
+.add-app:hover .add-app-icon {
+  color: var(--accent);
+  background: rgba(255, 214, 10, 0.08);
+  border-color: var(--accent);
+}
+
+.delete-app-button {
+  background: #ff453a;
+  border-color: #000000;
+}
+
+.page-indicator {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.page-indicator.active {
+  background: #ffffff;
+}
+
+.app-dialog {
+  background: var(--card-bg);
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+}
+
+.app-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.primary-command,
+.secondary-command,
+.danger-command {
+  min-height: 44px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.primary-command {
+  color: #000000;
+}
+
+.secondary-command {
+  background: var(--raised-bg);
+  border-color: var(--raised-bg);
+}
+
+.danger-command {
+  background: #ff453a;
+  border-color: #ff453a;
+}
+
+.dialog-status.error {
+  color: #ff6961;
+}
+
+kbd {
+  background: var(--raised-bg);
+  border-color: #48484a;
+}
+
+.player-view.classic-keypad {
+  background: var(--bg);
+}
+
+.library-credit a {
+  color: var(--accent);
+}
+
+/* The library header is a single large title, as in iOS apps. */
+.brand-block,
+.brand-block h1 {
+  display: block;
+}
+
+.brand-block h1 {
+  font-size: 2.125rem;
+  line-height: 1.2;
 }

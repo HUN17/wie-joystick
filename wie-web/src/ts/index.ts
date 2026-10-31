@@ -107,29 +107,6 @@ const main = async () => {
   };
 
   await initializeLibrary(backend, routeToApp, settings);
-
-  const advertisingScripts = document.getElementById("advertising-scripts") as HTMLTemplateElement;
-  try {
-    const advertising = native
-      ? await invoke<"adsense" | "adsense-test" | "sponsor">("initialize_advertising")
-      : "sponsor";
-    if (advertising === "sponsor") {
-      document.querySelector(".adsbygoogle")!.remove();
-      document.querySelector<HTMLElement>(".library-sponsor")!.hidden = false;
-    } else {
-      document.querySelector(".library-sponsor")!.remove();
-      if (advertising === "adsense-test" || process.env.NODE_ENV !== "production") {
-        document.querySelector<HTMLElement>(".adsbygoogle")!.dataset.adtest = "on";
-      }
-      document.head.append(document.importNode(advertisingScripts.content, true));
-    }
-  } catch (error) {
-    Sentry.captureException(error);
-    console.error("Advertising initialization failed", error);
-    document.querySelector(".library-ad")!.remove();
-  } finally {
-    advertisingScripts.remove();
-  }
 };
 
 const start = () => {
