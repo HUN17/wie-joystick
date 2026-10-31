@@ -1,7 +1,9 @@
 [workspace]
 resolver = "2"
+exclude = ["vendor/arm32_cpu"]
 
 members = [
+    "wie-android",
     "wie-app",
     "wie-backend",
     "wie-util",
@@ -77,6 +79,7 @@ wipi-types = { version = "^0.0.4" }
 zip = { version = "^9.0", features = ["deflate"], default-features = false }
 
 wie = { version = "0.2.19", path = ".", default-features = false }
+wie-android = { version = "0.2.19", path = "wie-android" }
 wie-backend = { version = "0.2.19", path = "wie-backend" }
 wie-j2me = { version = "0.2.19", path = "wie-j2me" }
 wie-ktf = { version = "0.2.19", path = "wie-ktf" }
@@ -118,6 +121,7 @@ cli = ["dep:clap", "dep:directories", "dep:fast_image_resize", "dep:midir", "dep
 
 [dependencies]
 anyhow = { workspace = true, features = ["backtrace"] }
+wie-android = { workspace = true }
 wie-backend = { workspace = true }
 wie-j2me = { workspace = true }
 wie-ktf = { workspace = true }
@@ -139,3 +143,7 @@ softbuffer = { version = "^0.4", optional = true }
 tempfile = { version = "3", optional = true }
 winit = { version = "^0.30", features = ["x11", "wayland"], optional = true }
 wie-core-arm-native = { workspace = true, optional = true }
+
+# Local fork adding the ARMv5TE signed halfword multiplies used by Android armeabi libraries.
+[patch.crates-io]
+arm32_cpu = { path = "vendor/arm32_cpu" }

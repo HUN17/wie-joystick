@@ -374,8 +374,6 @@ checksum = "3bc62ac97cc33321f50863d514c3bc38a453947a8f9e781137e47c7401020aed"
 [[package]]
 name = "arm32_cpu"
 version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c486154d790793acc6f6e881956512bc78fadbd7a7ace8f4be41eba95f9c55a"
 dependencies = [
  "log",
 ]
@@ -7580,6 +7578,7 @@ dependencies = [
  "tempfile",
  "tracing",
  "tracing-subscriber",
+ "wie-android",
  "wie-backend",
  "wie-core-arm-native",
  "wie-j2me",
@@ -7588,6 +7587,20 @@ dependencies = [
  "wie-skt",
  "wie-util",
  "winit",
+]
+
+[[package]]
+name = "wie-android"
+version = "0.2.19"
+dependencies = [
+ "async-trait",
+ "bytemuck",
+ "elf",
+ "spin",
+ "tracing",
+ "wie-backend",
+ "wie-core-arm",
+ "wie-util",
 ]
 
 [[package]]

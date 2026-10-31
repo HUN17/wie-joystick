@@ -19,7 +19,7 @@ use crate::{
 use self::{audio::Audio, event_queue::EventQueue};
 
 pub use self::{
-    event_queue::{Event, KeyCode},
+    event_queue::{Event, KeyCode, TouchPhase},
     file_system::{FilesystemOverlay, normalize_guest_path},
 };
 

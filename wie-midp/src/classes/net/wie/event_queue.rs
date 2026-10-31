@@ -245,6 +245,8 @@ impl EventQueue {
                     }
                     // wipi notifyEvent
                     Event::Notify { r#type, param1, param2 } => vec![EventQueueEvent::NotifyEvent as i32, r#type, param1, param2],
+                    // Pointer input is not routed to MIDP applications.
+                    Event::Touch { .. } => continue,
                 };
 
                 jvm.store_array(&mut event, 0, event_data).await?;

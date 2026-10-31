@@ -1,0 +1,19 @@
+[package]
+name = "wie-android"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description.workspace = true
+repository.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+bytemuck = { workspace = true }
+spin = { workspace = true }
+tracing = { workspace = true }
+
+elf = { version = "^0.8" }
+
+wie-backend = { workspace = true }
+wie-core-arm = { workspace = true }
+wie-util = { workspace = true }

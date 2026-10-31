@@ -62,6 +62,13 @@ impl KeyCode {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TouchPhase {
+    Down,
+    Move,
+    Up,
+}
+
 type TimerCallback = Box<dyn FnOnce() -> Pin<Box<dyn Future<Output = Result<()>> + Send>> + Send + Sync>;
 
 pub enum Event {
@@ -70,8 +77,21 @@ pub enum Event {
     Keydown(KeyCode),
     Keyup(KeyCode),
     Keyrepeat(KeyCode),
-    Timer { due: Instant, callback: TimerCallback },
-    Notify { r#type: i32, param1: i32, param2: i32 }, // wipi notifyEvent
+    Timer {
+        due: Instant,
+        callback: TimerCallback,
+    },
+    Notify {
+        r#type: i32,
+        param1: i32,
+        param2: i32,
+    }, // wipi notifyEvent
+    /// Single-pointer touch in screen pixel coordinates.
+    Touch {
+        phase: TouchPhase,
+        x: i32,
+        y: i32,
+    },
 }
 
 impl Event {
@@ -99,7 +119,7 @@ impl EventQueue {
     }
 
     pub fn push(&mut self, event: Event) {
-        if matches!(event, Event::Keydown(_) | Event::Keyup(_) | Event::Keyrepeat(_)) {
+        if matches!(event, Event::Keydown(_) | Event::Keyup(_) | Event::Keyrepeat(_) | Event::Touch { .. }) {
             self.input_events.push_back(event);
             return;
         }
@@ -112,7 +132,7 @@ impl EventQueue {
         self.events.push_back(event);
     }
 
-    /// Keyboard input takes priority; events at the same priority remain FIFO.
+    /// Keyboard and touch input take priority; events at the same priority remain FIFO.
     pub fn pop(&mut self) -> Option<Event> {
         self.input_events.pop_front().or_else(|| self.events.pop_front())
     }
