@@ -13,7 +13,9 @@ use wie_util::{Result, WieError};
 
 use crate::runtime::{DisplayConfig, start};
 
-const LIBRARY_PREFIX: &str = "lib/armeabi/lib";
+const LIBRARY_DIRECTORY: &str = "lib/armeabi/";
+/// Repackaged APKs keep the original 32-bit game library as an asset next to their own loader.
+const ASSET_DIRECTORY: &str = "assets/";
 const VFS_ASSET: &str = "assets/data.vfs.mp3";
 
 struct AndroidTaskRunner {
@@ -38,17 +40,26 @@ impl AndroidEmulator {
         Self::library_name(files).is_some() && files.contains_key(VFS_ASSET)
     }
 
+    /// Path of the 32-bit ARM game library and its name without `lib` and `.so`.
+    fn library(files: &BTreeMap<String, Vec<u8>>) -> Option<(String, String)> {
+        let is_arm32_elf = |data: &[u8]| data.len() > 20 && data.starts_with(b"\x7fELF") && data[4] == 1 && data[18] == 40;
+        let candidate = |directory: &str| {
+            files.iter().find_map(|(path, data)| {
+                let file = path.strip_prefix(directory)?;
+                let name = file.strip_suffix(".so")?;
+                (!file.contains('/') && is_arm32_elf(data)).then(|| (path.clone(), name.strip_prefix("lib").unwrap_or(name).to_string()))
+            })
+        };
+        candidate(LIBRARY_DIRECTORY).or_else(|| candidate(ASSET_DIRECTORY))
+    }
+
     fn library_name(files: &BTreeMap<String, Vec<u8>>) -> Option<String> {
-        files
-            .keys()
-            .find_map(|x| x.strip_prefix(LIBRARY_PREFIX)?.strip_suffix(".so").map(ToString::to_string))
+        Self::library(files).map(|(_, name)| name)
     }
 
     pub fn from_apk(platform: Box<dyn Platform>, mut files: BTreeMap<String, Vec<u8>>, options: Options) -> Result<Self> {
-        let name = Self::library_name(&files).ok_or_else(|| WieError::FatalError("APK has no armeabi library".into()))?;
-        let library = files
-            .remove(&alloc::format!("{LIBRARY_PREFIX}{name}.so"))
-            .ok_or_else(|| WieError::FatalError("Missing native library".into()))?;
+        let (path, name) = Self::library(&files).ok_or_else(|| WieError::FatalError("APK has no 32-bit ARM game library".into()))?;
+        let library = files.remove(&path).ok_or_else(|| WieError::FatalError("Missing native library".into()))?;
         let vfs = files
             .remove(VFS_ASSET)
             .ok_or_else(|| WieError::FatalError("Missing data.vfs.mp3".into()))?;

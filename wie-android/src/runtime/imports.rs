@@ -11,6 +11,10 @@ use super::{
 
 /// Symbols the Android system libraries (libc, libm, libGLESv1_CM, liblog, libstdc++) provide.
 const IMPORTS: &[&str] = &[
+    "ANativeWindow_getHeight",
+    "ANativeWindow_getWidth",
+    "_ZdlPv",
+    "_Znwj",
     "__android_log_print",
     "__cxa_begin_cleanup",
     "__cxa_call_unexpected",
@@ -122,7 +126,7 @@ async fn handle_import_svc(core: &mut ArmCore, context: &mut AndroidContext, id:
     let name = IMPORTS[id.0 as usize];
 
     match name {
-        "malloc" => {
+        "malloc" | "_Znwj" => {
             let size = param(core, 0)?;
             malloc(core, size)?.write(core, lr)
         }
@@ -132,7 +136,7 @@ async fn handle_import_svc(core: &mut ArmCore, context: &mut AndroidContext, id:
             core.write_bytes(ptr, &vec![0; size as usize])?;
             ptr.write(core, lr)
         }
-        "free" => {
+        "free" | "_ZdlPv" => {
             let ptr = param(core, 0)?;
             if ptr != 0 {
                 let base = read_generic(core, ptr - 8)?;
@@ -225,6 +229,17 @@ async fn handle_import_svc(core: &mut ArmCore, context: &mut AndroidContext, id:
             let text = format(core, &fmt, &mut ArgReader::Params(3))?;
             tracing::info!("[android {priority}] {tag}: {}", alloc::string::String::from_utf8_lossy(&text));
             1u32.write(core, lr)
+        }
+        "ANativeWindow_getWidth" | "ANativeWindow_getHeight" => {
+            let window = param(core, 0)?;
+            let screen = context.system.platform().screen();
+            let size = if name == "ANativeWindow_getWidth" {
+                screen.width()
+            } else {
+                screen.height()
+            };
+            tracing::debug!("{name}({window:#x}) -> {size}");
+            size.write(core, lr)
         }
         "__errno" => (context.ptr_globals).write(core, lr),
         "pthread_mutex_lock" | "pthread_mutex_unlock" => 0u32.write(core, lr),
