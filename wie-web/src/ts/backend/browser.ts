@@ -16,14 +16,15 @@ export const initializeWie = async (): Promise<Wie> => {
       return store.list();
     },
     async importApp(file) {
-      const archive = new Uint8Array(await file.arrayBuffer());
-      const extracted = extractAppMetadata(file.name, archive);
+      const original = new Uint8Array(await file.arrayBuffer());
+      const extracted = extractAppMetadata(file.name, original);
       try {
+        const archive = extracted.archive ?? original;
         const icon = extracted.icon;
         const app: LibraryApp = {
           id: extracted.id,
           title: extracted.title,
-          filename: file.name,
+          filename: extracted.filename,
           addedAt: Date.now(),
           icon: icon.length ? new Blob([new Uint8Array(icon).buffer]) : undefined,
         };

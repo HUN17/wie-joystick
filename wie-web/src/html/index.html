@@ -237,7 +237,7 @@
         </header>
         <p data-i18n-text="welcomeDescription">wie는 WIPI와 J2ME 앱을 이 기기에서 보관하고 실행할 수 있는 에뮬레이터입니다.</p>
         <ol class="welcome-steps">
-          <li><strong data-i18n-text="addApp">앱 추가</strong><span data-i18n-text="welcomeAdd">WIPI ZIP 또는 J2ME JAR 파일을 선택합니다.</span></li>
+          <li><strong data-i18n-text="addApp">앱 추가</strong><span data-i18n-text="welcomeAdd">WIPI ZIP, J2ME JAR 또는 안드로이드 APK 파일을 선택합니다.</span></li>
           <li><strong data-i18n-text="launchApp">앱 실행</strong><span data-i18n-text="welcomeLaunch">라이브러리에서 추가된 앱 아이콘을 누릅니다.</span></li>
           <li><strong data-i18n-text="manageApps">앱 관리</strong><span data-i18n-text="welcomeManage">오른쪽 위 메뉴에서 앱을 삭제하거나 설정을 변경합니다.</span></li>
         </ol>
@@ -256,7 +256,7 @@
             <i data-lucide="x"></i>
           </button>
         </header>
-        <p data-i18n-text="chooseArchiveDescription">WIPI ZIP 또는 J2ME JAR 파일을 선택하거나 이 창에 끌어다 놓으세요.</p>
+        <p data-i18n-text="chooseArchiveDescription">WIPI ZIP, J2ME JAR 또는 안드로이드 APK 파일을 선택하거나 이 창에 끌어다 놓으세요.</p>
         <button id="choose-archive" class="primary-command" type="button" autofocus>
           <i data-lucide="upload"></i>
           <span data-i18n-text="chooseFile">파일 선택</span>
@@ -264,7 +264,7 @@
         <p id="import-status" class="dialog-status" role="status" aria-live="polite"></p>
       </form>
     </dialog>
-    <input id="archive-input" type="file" accept=".zip,.jar,application/zip,application/java-archive" multiple hidden />
+    <input id="archive-input" type="file" accept=".zip,.jar,.apk,application/zip,application/java-archive,application/vnd.android.package-archive" multiple hidden />
 
     <dialog id="delete-dialog" class="app-dialog">
       <form method="dialog">

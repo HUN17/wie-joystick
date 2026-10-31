@@ -61,6 +61,10 @@ export const runApp = (backend: Wie, app: LibraryApp, settings: SettingsControll
   let start: Promise<PlayerSession | undefined>;
   let warningTimer: ReturnType<typeof setTimeout> | undefined;
   let dpadPointer: number | undefined;
+  // Android games take input directly on the game screen instead of the virtual keypad.
+  const touchInput = app.filename.toLowerCase().endsWith(".apk");
+  let touchPointer: number | undefined;
+  let touchPoint: [number, number] | undefined;
   let toolbarTimer: ReturnType<typeof setTimeout> | undefined;
 
   playerTitle.textContent = app.title;
@@ -117,13 +121,16 @@ export const runApp = (backend: Wie, app: LibraryApp, settings: SettingsControll
   const releaseKeys = () => {
     inputs.clear();
     resetDpad();
+    touchPointer = undefined;
+    touchPoint = undefined;
     if (session && !ending) void session.releaseKeys().catch(finish);
   };
   const showClassicKeypad = (classic: boolean) => {
     playerView.classList.toggle("classic-keypad", classic);
     keypadToggle.setAttribute("aria-pressed", String(classic));
   };
-  showClassicKeypad(configStore.get("classicKeypad"));
+  playerView.classList.toggle("touch-input", touchInput);
+  showClassicKeypad(!touchInput && configStore.get("classicKeypad"));
   const showToolbar = () => {
     playerView.classList.remove("toolbar-hidden");
     clearTimeout(toolbarTimer);
@@ -220,6 +227,69 @@ export const runApp = (backend: Wie, app: LibraryApp, settings: SettingsControll
   dpad.addEventListener("pointerup", releaseDpad, { signal: abortController.signal });
   dpad.addEventListener("pointercancel", releaseDpad, { signal: abortController.signal });
   dpad.addEventListener("lostpointercapture", releaseDpad, { signal: abortController.signal });
+
+  // Maps a pointer to screen pixels of the centered, aspect-preserving canvas image.
+  const canvasPoint = (event: PointerEvent): [number, number] | undefined => {
+    const canvas = document.getElementById("canvas") as HTMLCanvasElement | null;
+    if (!canvas || canvas.width === 0 || canvas.height === 0) return undefined;
+    const rect = canvas.getBoundingClientRect();
+    const scale = Math.min(rect.width / canvas.width, rect.height / canvas.height);
+    const x = (event.clientX - rect.left - (rect.width - canvas.width * scale) / 2) / scale;
+    const y = (event.clientY - rect.top - (rect.height - canvas.height * scale) / 2) / scale;
+    return [Math.min(Math.max(Math.floor(x), -1), canvas.width), Math.min(Math.max(Math.floor(y), -1), canvas.height)];
+  };
+  const insideCanvas = ([x, y]: [number, number]) => {
+    const canvas = document.getElementById("canvas") as HTMLCanvasElement;
+    return x >= 0 && y >= 0 && x < canvas.width && y < canvas.height;
+  };
+  const clampToCanvas = ([x, y]: [number, number]): [number, number] => {
+    const canvas = document.getElementById("canvas") as HTMLCanvasElement;
+    return [Math.min(Math.max(x, 0), canvas.width - 1), Math.min(Math.max(y, 0), canvas.height - 1)];
+  };
+  const sendTouch = (phase: "down" | "move" | "up", point: [number, number]) => {
+    if (!session?.touch || preparing || suspended || ending) return;
+    void session.touch(phase, point[0], point[1]).catch(finish);
+  };
+  if (touchInput) {
+    // Capture-phase listener so a touch on the game image does not also toggle the toolbar.
+    playerOutput.addEventListener(
+      "pointerdown",
+      (event) => {
+        const point = canvasPoint(event);
+        if (touchPointer !== undefined || !point || !insideCanvas(point)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        playerOutput.setPointerCapture(event.pointerId);
+        touchPointer = event.pointerId;
+        touchPoint = point;
+        sendTouch("down", point);
+      },
+      { capture: true, signal: abortController.signal },
+    );
+    playerOutput.addEventListener(
+      "pointermove",
+      (event) => {
+        if (event.pointerId !== touchPointer) return;
+        const point = canvasPoint(event);
+        if (!point) return;
+        const clamped = clampToCanvas(point);
+        if (touchPoint && clamped[0] === touchPoint[0] && clamped[1] === touchPoint[1]) return;
+        touchPoint = clamped;
+        sendTouch("move", clamped);
+      },
+      { signal: abortController.signal },
+    );
+    const releaseTouch = (event: PointerEvent) => {
+      if (event.pointerId !== touchPointer) return;
+      touchPointer = undefined;
+      const point = canvasPoint(event);
+      sendTouch("up", point ? clampToCanvas(point) : touchPoint ?? [0, 0]);
+      touchPoint = undefined;
+    };
+    playerOutput.addEventListener("pointerup", releaseTouch, { signal: abortController.signal });
+    playerOutput.addEventListener("pointercancel", releaseTouch, { signal: abortController.signal });
+    playerOutput.addEventListener("lostpointercapture", releaseTouch, { signal: abortController.signal });
+  }
 
   document.addEventListener(
     "keydown",

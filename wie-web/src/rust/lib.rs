@@ -28,7 +28,9 @@ use tracing_web::MakeConsoleWriter;
 use wasm_bindgen::{JsError, prelude::*};
 use web_sys::HtmlCanvasElement;
 
-use wie_backend::{DatabaseRepository as BackendDatabaseRepository, Emulator, Event, Filesystem, Font, Instant, KeyCode, Options, Platform, Screen};
+use wie_backend::{
+    DatabaseRepository as BackendDatabaseRepository, Emulator, Event, Filesystem, Font, Instant, KeyCode, Options, Platform, Screen, TouchPhase,
+};
 
 use self::{
     audio_sink::{AudioPlayer, AudioSink},
@@ -159,6 +161,8 @@ pub struct ImportedAppMetadata {
     id: String,
     title: String,
     icon: Vec<u8>,
+    filename: String,
+    archive: Option<Vec<u8>>,
 }
 
 #[wasm_bindgen]
@@ -177,16 +181,34 @@ impl ImportedAppMetadata {
     pub fn icon(&self) -> Vec<u8> {
         self.icon.clone()
     }
+
+    /// Filename to store the app under; an Android game imported as ZIP is stored as its APK.
+    #[wasm_bindgen(getter)]
+    pub fn filename(&self) -> String {
+        self.filename.clone()
+    }
+
+    /// Replacement archive bytes when the import was normalized, otherwise `undefined`.
+    #[wasm_bindgen(getter)]
+    pub fn archive(&self) -> Option<Vec<u8>> {
+        self.archive.clone()
+    }
 }
 
 #[wasm_bindgen(js_name = extractAppMetadata)]
 pub fn extract_app_metadata(filename: &str, buf: &[u8]) -> Result<ImportedAppMetadata, JsError> {
+    let normalized = wie::normalize_android_archive(filename, buf);
+    let (filename, buf) = normalized
+        .as_ref()
+        .map_or((filename, buf), |(name, bytes)| (name.as_str(), bytes.as_slice()));
     let file_type = wie::determine_file_type(filename, buf).map_err(|error| JsError::new(&error.to_string()))?;
     let metadata = wie::extract_app_metadata(filename, buf, file_type).map_err(|error| JsError::new(&error.to_string()))?;
     Ok(ImportedAppMetadata {
         id: metadata.id,
         title: metadata.title,
         icon: metadata.icon.unwrap_or_default(),
+        filename: filename.into(),
+        archive: normalized.map(|(_, bytes)| bytes),
     })
 }
 
@@ -261,6 +283,16 @@ impl WieWeb {
         self.key_events.insert(key, millis);
 
         Ok(())
+    }
+
+    /// `phase` is 0 for down, 1 for move and 2 for up; coordinates are in screen pixels.
+    pub fn touch(&mut self, phase: u8, x: i32, y: i32) {
+        let phase = match phase {
+            0 => TouchPhase::Down,
+            1 => TouchPhase::Move,
+            _ => TouchPhase::Up,
+        };
+        self.emulator.handle_event(Event::Touch { phase, x, y });
     }
 
     pub fn key_up(&mut self, key: String) -> Result<(), JsError> {

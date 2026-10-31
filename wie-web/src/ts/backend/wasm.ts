@@ -1,6 +1,6 @@
 import { WieWeb } from "@pkg";
 
-import type { PlayerSession, SessionEvent } from "../backend";
+import type { PlayerSession, SessionEvent, TouchPhase } from "../backend";
 import { AudioPlayer } from "../midi";
 import { rustPanic } from "../panic";
 import type { EmulatorHost } from "./tauri-host";
@@ -30,6 +30,10 @@ export const startWasmSession = (
     throw rustPanic ?? error;
   }
   const keys = new Set<string>();
+  const touchPhases: Record<TouchPhase, number> = { down: 0, move: 1, up: 2 };
+  let touching = false;
+  let touchX = 0;
+  let touchY = 0;
   let running = true;
   let preparing = true;
   let frame: number;
@@ -44,16 +48,33 @@ export const startWasmSession = (
         emulator.key_up(key);
       }
     },
+    async touch(phase, x, y) {
+      if (!running || preparing || suspended) return;
+      // Moves and releases only follow a press the emulator has seen.
+      if (phase !== "down" && !touching) return;
+      touching = phase !== "up";
+      touchX = Math.round(x);
+      touchY = Math.round(y);
+      emulator.touch(touchPhases[phase], touchX, touchY);
+    },
     async releaseKeys() {
       if (!running) return;
       for (const key of keys) emulator.key_up(key);
       keys.clear();
+      if (touching) {
+        touching = false;
+        emulator.touch(touchPhases.up, touchX, touchY);
+      }
     },
     suspend(paused) {
       if (!running) return;
       suspended = paused;
       for (const key of keys) emulator.key_up(key);
       keys.clear();
+      if (touching) {
+        touching = false;
+        emulator.touch(touchPhases.up, touchX, touchY);
+      }
       cancelAnimationFrame(frame);
       onEvent({ type: "suspended", suspended });
       if (!suspended) frame = requestAnimationFrame(update);

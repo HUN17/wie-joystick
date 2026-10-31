@@ -81,6 +81,7 @@ export const initializeWie = async (): Promise<Wie> => {
           let stopping: Promise<void> | undefined;
           return {
             key: startedSession.key,
+            touch: startedSession.touch,
             releaseKeys: startedSession.releaseKeys,
             stop() {
               stopping ??= (async () => {

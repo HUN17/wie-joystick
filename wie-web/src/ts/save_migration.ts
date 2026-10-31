@@ -46,7 +46,7 @@ function open(name: string, filesystem: boolean): Promise<IDBDatabase> {
 }
 
 export async function migrateSaves(pid: string, aid: string, clet: boolean, normalize: (path: string) => string | undefined): Promise<void> {
-  await navigator.locks.request("wie-save-migration", async () => {
+  const migrate = async () => {
     const filesystem = await open("wie_filesystem", true);
     let records: IDBDatabase | undefined;
     try {
@@ -99,5 +99,8 @@ export async function migrateSaves(pid: string, aid: string, clet: boolean, norm
       records?.close();
       filesystem.close();
     }
-  });
+  };
+  // Web Locks need a secure context; without them (e.g. a plain-HTTP LAN test) migrate unguarded.
+  if (navigator.locks) await navigator.locks.request("wie-save-migration", migrate);
+  else await migrate();
 }

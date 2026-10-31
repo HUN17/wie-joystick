@@ -22,8 +22,12 @@ export type SessionEvent =
   | { type: "stopped"; failed: boolean }
   | { type: "error"; message: string; cause?: unknown };
 
+export type TouchPhase = "down" | "move" | "up";
+
 export interface PlayerSession {
   key(key: string, pressed: boolean): Promise<void>;
+  /** Single-pointer touch in screen pixels; absent when the runtime cannot route touches. */
+  touch?(phase: TouchPhase, x: number, y: number): Promise<void>;
   releaseKeys(): Promise<void>;
   stop(): Promise<void>;
 }

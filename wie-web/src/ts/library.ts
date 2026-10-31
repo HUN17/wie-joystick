@@ -359,7 +359,7 @@ export const initializeLibrary = async (backend: Wie, launchApp: (app: LibraryAp
       for (const file of files) {
         try {
           const filename = file.name.toLowerCase();
-          if (!filename.endsWith(".zip") && !filename.endsWith(".jar")) {
+          if (!filename.endsWith(".zip") && !filename.endsWith(".jar") && !filename.endsWith(".apk")) {
             throw new Error(t("invalidArchive"));
           }
 

@@ -1185,3 +1185,23 @@ kbd {
     scroll-behavior: auto;
   }
 }
+
+/* Touch mode: Android games read touches on the game image, so the virtual controls are hidden. */
+.player-view.touch-input .gamepad,
+.player-view.touch-input .button-container,
+.player-view.touch-input #keypad-toggle {
+  display: none;
+}
+
+.browser .player-view.touch-input .player-toolbar {
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+}
+
+.browser .player-view.touch-input .canvas-wrapper {
+  inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.browser .player-view.touch-input #canvas {
+  object-position: center;
+  touch-action: none;
+}
