@@ -1216,7 +1216,8 @@ kbd {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100dvh;
+    /* The large viewport includes Safari's toolbar area, so the game centers on the whole screen. */
+    width: 100lvh;
     height: 100vw;
     transform-origin: top left;
     transform: translateX(100vw) rotate(90deg);
