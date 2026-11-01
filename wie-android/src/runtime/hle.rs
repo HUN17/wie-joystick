@@ -302,6 +302,22 @@ fn asset_hash(name: &[u8]) -> u32 {
     name.iter().fold(5381u32, |hash, &c| hash.wrapping_mul(33).wrapping_add(c as u32))
 }
 
+/// Contents of the VFS asset `name`, walking the same `(name hash, size)` headers as the game.
+pub fn vfs_asset<'a>(vfs: &'a [u8], name: &str) -> Option<&'a [u8]> {
+    let hash = asset_hash(name.as_bytes());
+    let mut position = 0usize;
+    while let Some(header) = vfs.get(position..position.checked_add(8)?) {
+        let entry_hash = u32::from_le_bytes(header[0..4].try_into().unwrap());
+        let size = u32::from_le_bytes(header[4..8].try_into().unwrap()) as usize;
+        let data = vfs.get(position + 8..position + 8 + size)?;
+        if entry_hash == hash {
+            return Some(data);
+        }
+        position += 8 + size;
+    }
+    None
+}
+
 /// `MIDASKernelManager::getAssetSizeFromVFS(name, offset_out)`.
 ///
 /// The VFS is a list of `(name hash, size)` headers each followed by its data. The guest walks it

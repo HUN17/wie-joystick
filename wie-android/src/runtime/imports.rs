@@ -6,7 +6,7 @@ use wie_util::{ByteRead, ByteWrite, Result, WieError, read_generic, read_null_te
 use super::{
     AndroidContext, SVC_CATEGORY_IMPORT, file,
     format::{ArgReader, format},
-    gl, read_string,
+    gl, net, read_string,
 };
 
 /// Symbols the Android system libraries (libc, libm, libGLESv1_CM, liblog, libstdc++) provide.
@@ -270,11 +270,17 @@ async fn handle_import_svc(core: &mut ArmCore, context: &mut AndroidContext, id:
         }
         "read" => {
             let (fd, buf, count) = (param(core, 0)?, param(core, 1)?, param(core, 2)?);
+            if net::is_socket(fd) {
+                return net::recv(core, context, fd, buf, count, 0)?.write(core, lr);
+            }
             tracing::trace!("read({fd}, {buf:#x}, {count})");
             file::read(core, context, fd, buf, count).await?.write(core, lr)
         }
         "write" => {
             let (fd, buf, count) = (param(core, 0)?, param(core, 1)?, param(core, 2)?);
+            if net::is_socket(fd) {
+                return net::write(core, context, fd, buf, count).await?.write(core, lr);
+            }
             tracing::debug!("write({fd}, {buf:#x}, {count})");
             file::write(core, context, fd, buf, count).await?.write(core, lr)
         }
@@ -285,6 +291,9 @@ async fn handle_import_svc(core: &mut ArmCore, context: &mut AndroidContext, id:
         }
         "close" => {
             let fd = param(core, 0)?;
+            if net::is_socket(fd) {
+                return net::close(core, context, fd)?.write(core, lr);
+            }
             tracing::debug!("close({fd})");
             file::close(core, context, fd)?.write(core, lr)
         }
@@ -354,9 +363,40 @@ async fn handle_import_svc(core: &mut ArmCore, context: &mut AndroidContext, id:
             Allocator::free(core, stream, FILE_SIZE)?;
             file::close(core, context, fd)?.write(core, lr)
         }
-        "socket" | "connect" | "recv" | "select" | "setsockopt" | "getsockopt" | "shutdown" | "fcntl" | "inet_addr" => {
-            tracing::warn!("stub {name}({:#x}, {:#x}, {:#x})", param(core, 0)?, param(core, 1)?, param(core, 2)?);
-            u32::MAX.write(core, lr)
+        "socket" => {
+            let (domain, kind, protocol) = (param(core, 0)?, param(core, 1)?, param(core, 2)?);
+            net::socket(core, context, domain, kind, protocol)?.write(core, lr)
+        }
+        "connect" => {
+            let (fd, address) = (param(core, 0)?, param(core, 1)?);
+            net::connect(core, context, fd, address)?.write(core, lr)
+        }
+        "recv" => {
+            let (fd, buf, length, flags) = (param(core, 0)?, param(core, 1)?, param(core, 2)?, param(core, 3)?);
+            net::recv(core, context, fd, buf, length, flags)?.write(core, lr)
+        }
+        "select" => {
+            let (nfds, read_set, write_set, except_set) = (param(core, 0)?, param(core, 1)?, param(core, 2)?, param(core, 3)?);
+            net::select(core, context, nfds, read_set, write_set, except_set)?.write(core, lr)
+        }
+        "getsockopt" => {
+            let (fd, level, option, value, length) = (param(core, 0)?, param(core, 1)?, param(core, 2)?, param(core, 3)?, param(core, 4)?);
+            net::getsockopt(core, fd, level, option, value, length)?.write(core, lr)
+        }
+        "fcntl" => {
+            let (fd, command, argument) = (param(core, 0)?, param(core, 1)?, param(core, 2)?);
+            net::fcntl(fd, command, argument).write(core, lr)
+        }
+        "setsockopt" | "shutdown" => {
+            tracing::debug!("{name}({:#x}, {:#x}, {:#x})", param(core, 0)?, param(core, 1)?, param(core, 2)?);
+            0u32.write(core, lr)
+        }
+        "inet_addr" => {
+            let address = read_string(core, param(core, 0)?)?;
+            tracing::debug!("inet_addr({address})");
+            let octets: Vec<u8> = address.split('.').filter_map(|x| x.parse().ok()).collect();
+            let result = <[u8; 4]>::try_from(octets.as_slice()).map_or(u32::MAX, u32::from_le_bytes);
+            result.write(core, lr)
         }
         "glGenTextures" => {
             let (count, ptr) = (param(core, 0)?, param(core, 1)?);

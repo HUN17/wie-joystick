@@ -7,6 +7,7 @@ mod imports;
 mod java;
 mod jni;
 mod loader;
+mod net;
 
 use alloc::{format, string::String, sync::Arc, vec::Vec};
 
@@ -53,6 +54,7 @@ struct RuntimeGlobals {
     clip_table: u32,
     /// Content ID string of a carrier purchase waiting for its result, or zero.
     pending_purchase: u32,
+    socket_table: u32,
 }
 
 #[derive(Clone)]
@@ -92,6 +94,9 @@ pub async fn start(core: &mut ArmCore, system: &mut System, library: &[u8], vfs:
     write_generic(core, gl_state, <gl::GlState as Zeroable>::zeroed())?;
     let fd_table = Allocator::alloc(core, file::MAX_FILES * size_of::<file::OpenFile>() as u32)?;
     core.write_bytes(fd_table, &alloc::vec![0; (file::MAX_FILES as usize) * size_of::<file::OpenFile>()])?;
+    let socket_table_size = net::MAX_SOCKETS as usize * size_of::<net::SocketEntry>();
+    let socket_table = Allocator::alloc(core, socket_table_size as u32)?;
+    core.write_bytes(socket_table, &alloc::vec![0; socket_table_size])?;
     write_generic(
         core,
         ptr_globals,
@@ -100,6 +105,7 @@ pub async fn start(core: &mut ArmCore, system: &mut System, library: &[u8], vfs:
             stack_chk_guard: 0xdead_beef,
             asset_table,
             fd_table,
+            socket_table,
             gl_state,
             clip_table,
             ..Zeroable::zeroed()

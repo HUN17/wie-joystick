@@ -7596,6 +7596,7 @@ dependencies = [
  "async-trait",
  "bytemuck",
  "elf",
+ "encoding_rs",
  "spin",
  "symphonia",
  "tracing",
