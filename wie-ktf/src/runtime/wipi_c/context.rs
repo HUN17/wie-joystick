@@ -12,18 +12,24 @@ use wie_jvm_support::JvmSupport;
 use wie_util::{ByteRead, ByteWrite, Result, WieError, read_generic, write_generic};
 use wie_wipi_c::{WIPICContext, WIPICMethodBody};
 
-use crate::runtime::with_arm_context;
+use crate::runtime::{wipi_c::jar_resources::JarResources, with_arm_context};
 
 #[derive(Clone)]
 pub struct KtfWIPICContext {
     core: ArmCore,
     system: System,
     jvm: Jvm, // We need jvm to access resource in jvm. TODO is there better way to do this?
+    resources: JarResources,
 }
 
 impl KtfWIPICContext {
-    pub fn new(core: ArmCore, system: System, jvm: Jvm) -> Self {
-        Self { core, system, jvm }
+    pub fn new(core: ArmCore, system: System, jvm: Jvm, resources: JarResources) -> Self {
+        Self {
+            core,
+            system,
+            jvm,
+            resources,
+        }
     }
 }
 
@@ -96,6 +102,10 @@ impl WIPICContext for KtfWIPICContext {
     }
 
     async fn get_resource_size(&self, name: &str) -> Result<Option<usize>> {
+        if let Some(size) = self.resources.size(&self.system, &self.jvm, name).await {
+            return Ok(Some(size));
+        }
+
         let class_loader = JavaLangClassLoader::get_system_class_loader(&self.jvm)
             .await
             .map_err(|err| WieError::FatalError(alloc::format!("Failed to get class loader for resource {name:?}: {err:?}")))?;
@@ -126,6 +136,10 @@ impl WIPICContext for KtfWIPICContext {
     }
 
     async fn read_resource(&self, name: &str) -> Result<Vec<u8>> {
+        if let Some(data) = self.resources.read(&self.system, &self.jvm, name).await {
+            return Ok(data);
+        }
+
         let class_loader = JavaLangClassLoader::get_system_class_loader(&self.jvm)
             .await
             .map_err(|err| WieError::FatalError(alloc::format!("Failed to get class loader for resource {name:?}: {err:?}")))?;
@@ -192,7 +206,7 @@ mod tests {
     use wie_util::{Result, write_generic};
     use wie_wipi_c::api::kernel;
 
-    use super::KtfWIPICContext;
+    use super::{JarResources, KtfWIPICContext};
     use crate::runtime::{KtfJvmSupport, KtfJvmThreadContext};
 
     #[test]
@@ -219,7 +233,7 @@ mod tests {
             let (jvm, _) = KtfJvmSupport::init(&mut core, &mut system_task, None).await?;
             let queue = jvm.new_class("net/wie/EventQueue", "()V", ()).await.unwrap();
             let timer = Allocator::alloc(&mut core, size_of::<kernel::WIPICTimer>() as u32)?;
-            let mut context = KtfWIPICContext::new(core.clone(), system_task.clone(), jvm.clone());
+            let mut context = KtfWIPICContext::new(core.clone(), system_task.clone(), jvm.clone(), JarResources::new());
 
             for instruction in [0x6800u16, 0xe800] {
                 let callback = Allocator::alloc(&mut core, 6)?;
