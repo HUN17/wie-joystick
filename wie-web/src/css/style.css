@@ -575,8 +575,11 @@ svg {
 }
 
 .browser .player-view:not(.classic-keypad) {
-  /* Space kept below the top safe area; the toolbar only appears over the game when swiped down. */
-  --top-gap: 0px;
+  /*
+   * Space kept below the top safe area so the game clears the blur iOS draws under the status bar.
+   * The toolbar only appears over the game when swiped down, so no room is reserved for it.
+   */
+  --top-gap: 24px;
   /* Width of one keypad key; the d-pad and the top row scale with it. */
   --key: min(13vw, 7.5vh, 52px);
   /* Space below the controls: they reach into the home indicator area but leave room for its swipe. */
