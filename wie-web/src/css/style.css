@@ -575,8 +575,8 @@ svg {
 }
 
 .browser .player-view:not(.classic-keypad) {
-  /* Space kept below the top safe area so the toolbar never covers the game. */
-  --top-gap: calc(var(--toolbar-height) + 4px);
+  /* Space kept below the top safe area; the toolbar only appears over the game when swiped down. */
+  --top-gap: 0px;
   /* Width of one keypad key; the d-pad and the top row scale with it. */
   --key: min(13vw, 7.5vh, 52px);
   /* Space below the controls: they reach into the home indicator area but leave room for its swipe. */
@@ -629,6 +629,11 @@ svg {
   width: 100%;
   aspect-ratio: auto;
   background: #000000;
+}
+
+/* Vertical drags on the game reveal the toolbar instead of scrolling the page. */
+.browser .player-view:not(.classic-keypad) #player-output {
+  touch-action: none;
 }
 
 .browser .player-view:not(.classic-keypad) #canvas {

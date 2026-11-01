@@ -30,6 +30,8 @@ const KEY_MAP: Record<string, string> = {
 // Fraction of the d-pad radius around its center where no direction is pressed.
 const DPAD_DEAD_ZONE = 0.2;
 const TOOLBAR_HIDE_DELAY_MS = 3000;
+// Downward drag on the game that reveals the toolbar.
+const TOOLBAR_SWIPE_PX = 40;
 const icons = {
   ArrowDown,
   ArrowLeft,
@@ -147,11 +149,29 @@ export const runApp = (backend: Wie, app: LibraryApp, settings: SettingsControll
     releaseKeys();
     settings.open();
   }, { signal: abortController.signal });
-  // Tapping the game shows or hides the toolbar; touching the toolbar keeps it visible a while longer.
-  playerOutput.addEventListener("pointerdown", () => {
-    if (playerView.classList.contains("toolbar-hidden")) showToolbar();
-    else hideToolbar();
+  // Swiping down on the game shows the toolbar, so stray taps while playing cannot reach its buttons.
+  // A tap while it is shown hides it again; touching the toolbar keeps it visible a while longer.
+  let swipe: { pointerId: number; x: number; y: number; shown: boolean } | undefined;
+  playerOutput.addEventListener("pointerdown", (event) => {
+    swipe = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, shown: false };
   }, { signal: abortController.signal });
+  playerOutput.addEventListener("pointermove", (event) => {
+    if (!swipe || swipe.shown || event.pointerId !== swipe.pointerId) return;
+    const dx = event.clientX - swipe.x;
+    const dy = event.clientY - swipe.y;
+    if (dy >= TOOLBAR_SWIPE_PX && dy > Math.abs(dx)) {
+      swipe.shown = true;
+      showToolbar();
+    }
+  }, { signal: abortController.signal });
+  const endSwipe = (event: PointerEvent) => {
+    if (!swipe || event.pointerId !== swipe.pointerId) return;
+    const tapped = !swipe.shown && Math.hypot(event.clientX - swipe.x, event.clientY - swipe.y) < TOOLBAR_SWIPE_PX;
+    swipe = undefined;
+    if (tapped && !playerView.classList.contains("toolbar-hidden")) hideToolbar();
+  };
+  playerOutput.addEventListener("pointerup", endSwipe, { signal: abortController.signal });
+  playerOutput.addEventListener("pointercancel", endSwipe, { signal: abortController.signal });
   playerToolbar.addEventListener("pointerdown", showToolbar, { signal: abortController.signal });
   keypadToggle.addEventListener("click", () => {
     releaseKeys();
