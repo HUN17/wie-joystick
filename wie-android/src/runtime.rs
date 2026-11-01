@@ -116,7 +116,7 @@ pub async fn start(core: &mut ArmCore, system: &mut System, library: &[u8], vfs:
     register_jni_svc_handler(core, &context)?;
 
     let library = load_shared_library(core, library, LIBRARY_BASE, |core, name| resolve_import(core, &context, name))?;
-    hle::install(core, &library.exports)?;
+    hle::install(core, &context, &library.exports)?;
     core.prepare_execution().await?;
 
     let env = JniEnv::create(core, &context).await?;

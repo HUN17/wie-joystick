@@ -1,4 +1,5 @@
-//! Host implementations of hot pixel loops in the Clet bridge's software renderer.
+//! Host implementations of hot guest functions: pixel loops in the Clet bridge's software renderer
+//! and the VFS asset lookup.
 //!
 //! Each hooked function keeps its original prologue in a trampoline, so calls the host fast path
 //! cannot reproduce exactly (blending, pixel-op callbacks, overlapping copies) run the guest code.
@@ -6,9 +7,9 @@
 use alloc::{collections::BTreeMap, format, string::String, vec};
 
 use wie_core_arm::{ArmCore, JumpTo, SvcId};
-use wie_util::{ByteRead, ByteWrite, Result, WieError, read_generic, write_generic};
+use wie_util::{ByteRead, ByteWrite, Result, WieError, read_generic, read_null_terminated_string_bytes, write_generic};
 
-use super::SVC_CATEGORY_HLE;
+use super::{AndroidContext, SVC_CATEGORY_HLE, VFS_FD};
 
 /// Executable scratch region for trampolines, below the library image.
 const TRAMPOLINE_BASE: u32 = 0x80000;
@@ -27,15 +28,22 @@ const GC_ALPHA: u32 = 0x20;
 const GC_PIXEL_OP: u32 = 0x2c;
 const OPAQUE_ALPHA: i32 = 254;
 
+/// `MIDASKernelManager` fields set by `setVFSInfo(fd, offset, length)`.
+const KM_VFS_FD: u32 = 0x610;
+const KM_VFS_OFFSET: u32 = 0x614;
+const KM_VFS_LENGTH: u32 = 0x618;
+
 #[derive(Clone, Copy)]
 enum Hook {
     FillRect,
     CopyFrameBuffer,
+    GetAssetSizeFromVfs,
 }
 
-const HOOKS: [(&str, Hook); 2] = [
+const HOOKS: [(&str, Hook); 3] = [
     ("MC_grpFillRect", Hook::FillRect),
     ("_Z26internalGrpCopyFrameBufferiiiiiiiiP14_MC_GrpContexth", Hook::CopyFrameBuffer),
+    ("_ZN18MIDASKernelManager19getAssetSizeFromVFSEPKcPm", Hook::GetAssetSizeFromVfs),
 ];
 
 /// `MC_GrpFrameBuffer`: width, height, bytes per line, bits per pixel, pixels.
@@ -99,8 +107,8 @@ fn trampoline(index: u32) -> u32 {
 }
 
 /// Redirects each hooked function to an SVC stub and keeps its prologue in a trampoline.
-pub fn install(core: &mut ArmCore, exports: &BTreeMap<String, u32>) -> Result<()> {
-    core.register_svc_handler(SVC_CATEGORY_HLE, handle_hle_svc, &())?;
+pub fn install(core: &mut ArmCore, context: &AndroidContext, exports: &BTreeMap<String, u32>) -> Result<()> {
+    core.register_svc_handler(SVC_CATEGORY_HLE, handle_hle_svc, context)?;
     core.load(&vec![0; (TRAMPOLINE_SIZE * HOOKS.len() as u32) as usize], TRAMPOLINE_BASE, 0x1000)?;
 
     for (index, (name, _)) in HOOKS.iter().enumerate() {
@@ -131,11 +139,12 @@ pub fn install(core: &mut ArmCore, exports: &BTreeMap<String, u32>) -> Result<()
     Ok(())
 }
 
-async fn handle_hle_svc(core: &mut ArmCore, _: &mut (), id: SvcId) -> Result<JumpTo> {
+async fn handle_hle_svc(core: &mut ArmCore, context: &mut AndroidContext, id: SvcId) -> Result<JumpTo> {
     let (_, lr) = core.read_pc_lr()?;
     let handled = match HOOKS[id.0 as usize].1 {
         Hook::FillRect => fill_rect(core)?,
         Hook::CopyFrameBuffer => copy_frame_buffer(core)?,
+        Hook::GetAssetSizeFromVfs => get_asset_size_from_vfs(core, context)?,
     };
 
     Ok(JumpTo(if handled { lr } else { trampoline(id.0) }))
@@ -286,4 +295,73 @@ fn copy_frame_buffer(core: &mut ArmCore) -> Result<bool> {
     }
 
     Ok(true)
+}
+
+/// `MIDASKernelManager::hash(name)`: djb2 over the asset name.
+fn asset_hash(name: &[u8]) -> u32 {
+    name.iter().fold(5381u32, |hash, &c| hash.wrapping_mul(33).wrapping_add(c as u32))
+}
+
+/// `MIDASKernelManager::getAssetSizeFromVFS(name, offset_out)`.
+///
+/// The VFS is a list of `(name hash, size)` headers each followed by its data. The guest walks it
+/// with two 4-byte `fread`s and an `fseek` per entry, i.e. thousands of libc calls per asset; this
+/// walks the same list in host memory. Returns the asset size and stores the data offset (relative
+/// to the VFS start), or returns -1 when the name is missing.
+fn get_asset_size_from_vfs(core: &mut ArmCore, context: &AndroidContext) -> Result<bool> {
+    let (manager, name, offset_out) = (param(core, 0)? as u32, param(core, 1)? as u32, param(core, 2)? as u32);
+    let fd: u32 = read_generic(core, manager + KM_VFS_FD)?;
+    if fd != VFS_FD {
+        return Ok(false);
+    }
+    let base: u32 = read_generic(core, manager + KM_VFS_OFFSET)?;
+    let length: u32 = read_generic(core, manager + KM_VFS_LENGTH)?;
+    let hash = asset_hash(&read_null_terminated_string_bytes(core, name)?);
+
+    let vfs = &context.vfs;
+    let header = |position: u32| -> Option<(u32, u32)> {
+        let start = (base as usize).checked_add(position as usize)?;
+        let bytes = vfs.get(start..start.checked_add(8)?)?;
+        Some((
+            u32::from_le_bytes(bytes[0..4].try_into().unwrap()),
+            u32::from_le_bytes(bytes[4..8].try_into().unwrap()),
+        ))
+    };
+
+    let mut position = 0u32;
+    let result = loop {
+        // A truncated header makes the guest log an error; let it handle that case itself.
+        let Some((entry_hash, size)) = header(position) else {
+            return Ok(false);
+        };
+        position = position.wrapping_add(8);
+        if entry_hash == hash {
+            write_generic(core, offset_out, position)?;
+            break size;
+        }
+        position = position.wrapping_add(size);
+        if position >= length {
+            break u32::MAX;
+        }
+    };
+    tracing::trace!("getAssetSizeFromVFS({hash:#x}) = {result:#x} at {position:#x}");
+
+    // The guest's stream shares the VFS descriptor's position; leave it where the walk ended.
+    context.update_globals(core, |x| x.vfs_position = base.wrapping_add(position))?;
+    core.write_return_value(&[result])?;
+
+    Ok(true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::asset_hash;
+
+    #[test]
+    fn asset_hash_matches_guest_djb2() {
+        assert_eq!(asset_hash(b""), 5381);
+        assert_eq!(asset_hash(b"a"), 5381 * 33 + 97);
+        // Bytes are unsigned and the sum wraps like the guest's 32-bit registers.
+        assert_eq!(asset_hash(&[0xff; 8]), (0..8).fold(5381u32, |h, _| h.wrapping_mul(33).wrapping_add(0xff)));
+    }
 }
