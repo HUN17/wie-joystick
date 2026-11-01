@@ -289,16 +289,21 @@ pub async fn sprintk(
     Ok(result.len() as _)
 }
 
-pub async fn get_total_memory(_context: &mut dyn WIPICContext) -> Result<i32> {
-    tracing::warn!("stub MC_knlGetTotalMemory()");
+// Some games size their own heap pool from the reported free memory (에픽크로니클PE takes all
+// but 50KB of it), so report what later handsets offered. The emulated heap is far larger.
+const REPORTED_TOTAL_MEMORY: i32 = 0x800000;
+const REPORTED_FREE_MEMORY: i32 = 0x400000;
 
-    Ok(0x100000) // TODO hardcoded
+pub async fn get_total_memory(_context: &mut dyn WIPICContext) -> Result<i32> {
+    tracing::debug!("MC_knlGetTotalMemory()");
+
+    Ok(REPORTED_TOTAL_MEMORY)
 }
 
 pub async fn get_free_memory(_context: &mut dyn WIPICContext) -> Result<i32> {
-    tracing::warn!("stub MC_knlGetFreeMemory()");
+    tracing::debug!("MC_knlGetFreeMemory()");
 
-    Ok(0x100000) // TODO hardcoded
+    Ok(REPORTED_FREE_MEMORY)
 }
 
 pub async fn exit(context: &mut dyn WIPICContext, code: i32) -> Result<()> {
