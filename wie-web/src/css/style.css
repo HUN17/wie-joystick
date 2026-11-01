@@ -418,6 +418,11 @@ svg {
   --toolbar-height: 52px;
   height: 100dvh;
   background: #ffffff;
+  /* Long presses while playing must not start iOS text selection or the callout menu. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .player-toolbar {
@@ -574,9 +579,9 @@ svg {
   --top-gap: calc(var(--toolbar-height) + 4px);
   /* Width of one keypad key; the d-pad and the top row scale with it. */
   --key: min(13vw, 7.5vh, 52px);
-  /* Space the controls keep from the bottom safe area. */
-  --pad-bottom: 16px;
-  /* Height of the controls above the bottom safe area: top row, gap, four key rows with gaps, padding. */
+  /* Space below the controls: they reach into the home indicator area but leave room for its swipe. */
+  --pad-bottom: max(6px, env(safe-area-inset-bottom) - 20px);
+  /* Height of the controls from the bottom of the screen: top row, gap, four key rows with gaps, padding. */
   --pad-height: calc(var(--key) * 0.8 + 10px + var(--key) * 4 + 24px + var(--pad-bottom));
   background: #000000;
 }
@@ -620,7 +625,7 @@ svg {
 .browser .player-view:not(.classic-keypad) .canvas-wrapper {
   position: fixed;
   /* The game fits between the toolbar and the controls, so neither covers it. */
-  inset: calc(env(safe-area-inset-top) + var(--top-gap)) 0 calc(var(--pad-height) + 8px + env(safe-area-inset-bottom));
+  inset: calc(env(safe-area-inset-top) + var(--top-gap)) 0 calc(var(--pad-height) + 4px);
   width: 100%;
   aspect-ratio: auto;
   background: #000000;
@@ -652,7 +657,7 @@ svg {
   align-items: center;
   justify-content: space-between;
   gap: 10px 8px;
-  padding: 0 max(12px, env(safe-area-inset-right)) calc(var(--pad-bottom) + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  padding: 0 max(12px, env(safe-area-inset-right)) var(--pad-bottom) max(12px, env(safe-area-inset-left));
   pointer-events: none;
   touch-action: none;
   user-select: none;
