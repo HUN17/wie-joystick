@@ -130,24 +130,26 @@
         </div>
 
         <div class="gamepad" aria-label="게임패드" data-i18n-aria-label="gamepad">
+          <div class="top-buttons">
+            <button data-key="CALL" aria-label="저장" data-i18n-aria-label="quickSave">📞</button>
+            <button data-key="CLR">CLR</button>
+            <button data-key="RIGHT_SOFT" data-i18n-text="rightSoftKey">우상단</button>
+          </div>
           <div id="dpad" class="dpad" aria-label="방향키" data-i18n-aria-label="arrowKeys">
             <span data-direction="UP"><i data-lucide="arrow-up"></i></span>
             <span data-direction="LEFT"><i data-lucide="arrow-left"></i></span>
             <span data-direction="RIGHT"><i data-lucide="arrow-right"></i></span>
             <span data-direction="DOWN"><i data-lucide="arrow-down"></i></span>
           </div>
-          <div class="menu-buttons">
-            <button data-key="*">*</button>
-            <button data-key="CLR">CLR</button>
-          </div>
           <div class="action-buttons">
-            <button data-key="5" class="attack">5</button>
-            <button data-key="1" style="--angle: 202.5deg">1</button>
-            <button data-key="3" style="--angle: 180deg">3</button>
-            <button data-key="7" style="--angle: 157.5deg">7</button>
-            <button data-key="9" style="--angle: 135deg">9</button>
-            <button data-key="0" style="--angle: 112.5deg">0</button>
-            <button data-key="#" style="--angle: 90deg">#</button>
+            <button data-key="1">1</button>
+            <button data-key="5" class="attack" data-i18n-text="attack">공격</button>
+            <button data-key="3">3</button>
+            <button data-key="7">7</button>
+            <button data-key="9">9</button>
+            <button data-key="0">0</button>
+            <button data-key="*" class="star">*</button>
+            <button data-key="#">#</button>
           </div>
         </div>
       </main>

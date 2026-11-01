@@ -570,12 +570,14 @@ svg {
 }
 
 .browser .player-view:not(.classic-keypad) {
-  /* Space kept between the bottom of the screen and both the game and the controls. */
-  --bottom-lift: 80px;
-  /* Space kept below the top safe area so the game clears the blurred system bars. */
-  --top-gap: 24px;
-  /* How far the controls sit below the bottom of the game. */
-  --controls-drop: 24px;
+  /* Space kept below the top safe area so the toolbar never covers the game. */
+  --top-gap: calc(var(--toolbar-height) + 4px);
+  /* Width of one keypad key; the d-pad and the top row scale with it. */
+  --key: min(13vw, 7.5vh, 52px);
+  /* Space the controls keep from the bottom safe area. */
+  --pad-bottom: 16px;
+  /* Height of the controls above the bottom safe area: top row, gap, four key rows with gaps, padding. */
+  --pad-height: calc(var(--key) * 0.8 + 10px + var(--key) * 4 + 24px + var(--pad-bottom));
   background: #000000;
 }
 
@@ -593,6 +595,15 @@ svg {
   transition: opacity 0.3s;
 }
 
+/* Classic keypad: the toolbar stays below the notch so the keypad toggle remains reachable. */
+.browser .player-view.classic-keypad {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+}
+
+.browser .player-view.classic-keypad .player-main {
+  height: calc(100dvh - var(--toolbar-height) - env(safe-area-inset-top));
+}
+
 .browser .player-view.toolbar-hidden:not(.classic-keypad) .player-toolbar {
   opacity: 0;
   pointer-events: none;
@@ -608,7 +619,8 @@ svg {
 
 .browser .player-view:not(.classic-keypad) .canvas-wrapper {
   position: fixed;
-  inset: calc(env(safe-area-inset-top) + var(--top-gap)) 0 var(--bottom-lift);
+  /* The game fits between the toolbar and the controls, so neither covers it. */
+  inset: calc(env(safe-area-inset-top) + var(--top-gap)) 0 calc(var(--pad-height) + 8px + env(safe-area-inset-bottom));
   width: 100%;
   aspect-ratio: auto;
   background: #000000;
@@ -633,16 +645,14 @@ svg {
   left: 0;
   z-index: 2;
   display: grid;
-  /* The menu row sits under the d-pad, away from the right thumb resting near the skill buttons. */
   grid-template-areas:
-    "dpad actions"
-    "menu .";
+    "top top"
+    "dpad actions";
   grid-template-columns: auto auto;
-  align-items: end;
+  align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  /* The menu row (36px button + 8px gap) sits inside the bottom lift. */
-  padding: 16px max(16px, env(safe-area-inset-right)) calc(var(--bottom-lift) - 44px - var(--controls-drop) + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  gap: 10px 8px;
+  padding: 0 max(12px, env(safe-area-inset-right)) calc(var(--pad-bottom) + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
   pointer-events: none;
   touch-action: none;
   user-select: none;
@@ -652,7 +662,7 @@ svg {
 
 .dpad {
   position: relative;
-  width: min(36vw, 40vh, 180px);
+  width: min(42vw, 3.4 * var(--key), 180px);
   aspect-ratio: 1;
   grid-area: dpad;
   pointer-events: auto;
@@ -663,7 +673,7 @@ svg {
 .dpad::before {
   position: absolute;
   inset: 33%;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(28, 28, 31, 0.9);
   content: "";
 }
 
@@ -675,9 +685,8 @@ svg {
   align-items: center;
   justify-content: center;
   color: rgba(255, 255, 255, 0.9);
-  background: rgba(255, 255, 255, 0.15);
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+  background: rgba(28, 28, 31, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   pointer-events: none;
 }
 
@@ -690,112 +699,89 @@ svg {
   top: 0;
   left: 33%;
   border-bottom: 0;
-  border-radius: 8px 8px 0 0;
+  border-radius: 12px 12px 0 0;
 }
 
 .dpad [data-direction="DOWN"] {
   bottom: 0;
   left: 33%;
   border-top: 0;
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 12px 12px;
 }
 
 .dpad [data-direction="LEFT"] {
   top: 33%;
   left: 0;
   border-right: 0;
-  border-radius: 8px 0 0 8px;
+  border-radius: 12px 0 0 12px;
 }
 
 .dpad [data-direction="RIGHT"] {
   top: 33%;
   right: 0;
   border-left: 0;
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 12px 12px 0;
 }
 
 .dpad[data-pressed="UP"] [data-direction="UP"],
 .dpad[data-pressed="DOWN"] [data-direction="DOWN"],
 .dpad[data-pressed="LEFT"] [data-direction="LEFT"],
 .dpad[data-pressed="RIGHT"] [data-direction="RIGHT"] {
-  background: rgba(251, 191, 36, 0.55);
-  border-color: rgba(251, 191, 36, 0.8);
+  background: rgba(90, 90, 96, 0.95);
 }
 
-.menu-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  grid-area: menu;
+/* Save (call key), cancel (CLR) and the right soft key span the full width. */
+.top-buttons {
+  display: grid;
+  grid-area: top;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
 }
 
-/*
- * Skill buttons sit on an arc of radius --radius around the attack button's center.
- * The arc dips below the attack button by --below so the lowest skill button stays on screen.
- */
+.top-buttons button {
+  height: calc(var(--key) * 0.8);
+}
+
+/* Phone-keypad block: the attack key (5) takes a 2x2 cell next to 1 and 3. */
 .action-buttons {
-  --radius: 128px;
-  --attack-size: 72px;
-  --skill-size: 44px;
-  --below: 36px;
-  position: relative;
-  width: calc(var(--radius) + (var(--attack-size) + var(--skill-size)) / 2);
-  height: calc(var(--radius) + (var(--attack-size) + var(--skill-size)) / 2 + var(--below));
+  display: grid;
   grid-area: actions;
-}
-
-.action-buttons button {
-  position: absolute;
-  right: calc((var(--attack-size) - var(--skill-size)) / 2);
-  bottom: calc((var(--attack-size) - var(--skill-size)) / 2 + var(--below));
-  width: var(--skill-size);
-  height: var(--skill-size);
-  transform: rotate(calc(-1 * var(--angle))) translate(var(--radius)) rotate(var(--angle));
+  grid-template-columns: repeat(3, var(--key));
+  grid-template-rows: repeat(4, var(--key));
+  gap: 8px;
 }
 
 .action-buttons .attack {
-  right: 0;
-  bottom: var(--below);
-  width: var(--attack-size);
-  height: var(--attack-size);
-  font-size: 1.4rem;
-  transform: none;
+  grid-column: 2 / span 2;
+  grid-row: 1 / span 2;
 }
 
-.action-buttons button,
-.menu-buttons button {
+.action-buttons .star {
+  grid-column: 1 / span 2;
+}
+
+.top-buttons button,
+.action-buttons button {
   margin: 0;
   padding: 0;
-  color: rgba(255, 255, 255, 0.9);
-  background: rgba(255, 255, 255, 0.15);
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  border-radius: 50%;
+  color: #f2f2f2;
+  background: rgba(28, 28, 31, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
   font: inherit;
-  font-size: 0.9rem;
-  font-weight: 650;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  font-size: 1.05rem;
+  font-weight: 700;
   pointer-events: auto;
   touch-action: none;
 }
 
-.menu-buttons button {
-  width: 36px;
-  height: 36px;
-  font-size: 0.7rem;
-}
-
-.action-buttons button:active,
-.menu-buttons button:active {
-  background: rgba(255, 255, 255, 0.4);
-}
-
 .action-buttons .attack {
-  background: rgba(251, 191, 36, 0.45);
-  border-color: rgba(251, 191, 36, 0.8);
+  font-size: 1.2rem;
 }
 
-.action-buttons .attack:active {
-  background: rgba(251, 191, 36, 0.75);
+.top-buttons button:active,
+.action-buttons button:active {
+  background: rgba(90, 90, 96, 0.95);
 }
 
 .native .player-toolbar {
