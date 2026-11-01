@@ -13,6 +13,10 @@ use wie_util::{Result, WieError};
 
 use crate::time::Instant;
 
+// Longest stretch of guest work per host frame. Idle frames end early, so this only matters while
+// a game is busy (e.g. loading a screen); it leaves a 60Hz frame a few milliseconds for the host.
+const TICK_BUDGET_MS: u64 = 12;
+
 type Task = Pin<Box<dyn Future<Output = Result<()>> + Send>>;
 
 struct TaskWake(AtomicBool);
@@ -124,7 +128,7 @@ impl Executor {
     where
         T: Fn() -> Instant,
     {
-        let end = now() + 8; // TODO hardcoded
+        let end = now() + TICK_BUDGET_MS;
         loop {
             let now = now();
 
