@@ -577,21 +577,12 @@ svg {
 .browser .player-view:not(.classic-keypad) {
   /* Space kept below the top safe area so the toolbar never covers the game. */
   --top-gap: calc(var(--toolbar-height) + 4px);
-  /* Space below the controls: they sit low in the home indicator area, clear of its handle. */
-  --pad-bottom: 6px;
-  /* Gap between keys. */
-  --key-gap: 6px;
-  /*
-   * Width of one keypad key; the d-pad and the top row scale with it. Keys shrink until a 3:4 game
-   * filling the screen width fits between the toolbar and the controls, but stay at least 36px.
-   */
-  --key: clamp(
-    36px,
-    (100dvh - env(safe-area-inset-top) - var(--top-gap) - 100vw * 4 / 3 - 4px - var(--key-gap) * 4 - var(--pad-bottom)) / 4.7,
-    min(13vw, 52px)
-  );
+  /* Width of one keypad key; the d-pad and the top row scale with it. */
+  --key: min(13vw, 7.5vh, 52px);
+  /* Space below the controls: they reach into the home indicator area but leave room for its swipe. */
+  --pad-bottom: max(6px, env(safe-area-inset-bottom) - 20px);
   /* Height of the controls from the bottom of the screen: top row, gap, four key rows with gaps, padding. */
-  --pad-height: calc(var(--key) * 4.7 + var(--key-gap) * 4 + var(--pad-bottom));
+  --pad-height: calc(var(--key) * 0.8 + 10px + var(--key) * 4 + 24px + var(--pad-bottom));
   background: #000000;
 }
 
@@ -665,7 +656,7 @@ svg {
   grid-template-columns: auto auto;
   align-items: center;
   justify-content: space-between;
-  gap: var(--key-gap) 8px;
+  gap: 10px 8px;
   padding: 0 max(12px, env(safe-area-inset-right)) var(--pad-bottom) max(12px, env(safe-area-inset-left));
   pointer-events: none;
   touch-action: none;
@@ -753,7 +744,7 @@ svg {
 }
 
 .top-buttons button {
-  height: calc(var(--key) * 0.7);
+  height: calc(var(--key) * 0.8);
 }
 
 /* Phone-keypad block: the attack key (5) takes a 2x2 cell next to 1 and 3. */
@@ -762,7 +753,7 @@ svg {
   grid-area: actions;
   grid-template-columns: repeat(3, var(--key));
   grid-template-rows: repeat(4, var(--key));
-  gap: var(--key-gap);
+  gap: 8px;
 }
 
 .action-buttons .attack {
