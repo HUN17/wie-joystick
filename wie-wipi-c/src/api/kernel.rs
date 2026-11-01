@@ -175,19 +175,13 @@ pub async fn unset_timer(context: &mut dyn WIPICContext, ptr_timer: WIPICWord) -
 pub async fn alloc(context: &mut dyn WIPICContext, size: WIPICWord) -> Result<WIPICIndirectPtr> {
     tracing::debug!("MC_knlAlloc({size:#x})");
 
-    if size == 0 {
-        return Ok(WIPICIndirectPtr(0));
-    }
-
+    // Handsets hand out a valid handle even for empty blocks, and games such as
+    // 크로노스 윙 dereference it without checking (e.g. empty lists in save data).
     context.alloc(size)
 }
 
 pub async fn calloc(context: &mut dyn WIPICContext, size: WIPICWord) -> Result<WIPICIndirectPtr> {
     tracing::debug!("MC_knlCalloc({size:#x})");
-
-    if size == 0 {
-        return Ok(WIPICIndirectPtr(0));
-    }
 
     let memory = context.alloc(size)?;
 
@@ -456,11 +450,16 @@ mod test {
     }
 
     #[futures_test::test]
-    async fn test_zero_size_memory_returns_null() -> Result<()> {
+    async fn test_zero_size_memory_returns_handle() -> Result<()> {
         let mut context = TestContext::new();
 
-        assert_eq!(alloc(&mut context, 0).await.unwrap().0, 0);
-        assert_eq!(calloc(&mut context, 0).await.unwrap().0, 0);
+        // Games dereference these handles unchecked, so they must come from the runtime allocator.
+        let allocated = alloc(&mut context, 0).await.unwrap();
+        let cleared = calloc(&mut context, 0).await.unwrap();
+        assert_ne!(allocated.0, 0);
+        assert_ne!(cleared.0, 0);
+        free(&mut context, allocated).await.unwrap();
+        free(&mut context, cleared).await.unwrap();
         assert_eq!(free(&mut context, wipi_types::wipic::WIPICIndirectPtr(0)).await.unwrap().0, 0);
 
         Ok(())
