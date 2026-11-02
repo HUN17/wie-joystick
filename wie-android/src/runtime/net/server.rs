@@ -3,6 +3,8 @@
 //! Requests and replies share one layout: a [`HEADER_SIZE`]-byte header, then big-endian fields.
 //! Every reply starts with a result code (0 is success) and a message the game may show.
 
+mod random_box;
+
 use alloc::{vec, vec::Vec};
 
 use encoding_rs::EUC_KR;
@@ -155,7 +157,7 @@ impl<'a> Body<'a> {
 }
 
 /// Length of a serialized `_NET_ITEM_`: count, type, id, serial buffer, and the equipment tail.
-fn net_item_length(data: &[u8]) -> Option<usize> {
+pub fn net_item_length(data: &[u8]) -> Option<usize> {
     let count = i32::from_be_bytes(data.get(..4)?.try_into().unwrap());
     if count <= 0 {
         return Some(4);
@@ -345,7 +347,10 @@ async fn respond(context: &AndroidContext, packet: &[u8], category: u32, command
             let product = body.int()?;
             let (item, quantity) = cash_product(&context.vfs, product)?;
             tracing::debug!("net: delivering cash product {product}: item {item} x{quantity}");
-            success().int(1).int(quantity as u32).byte(CASH_ITEM_TYPE).byte(item).buf(&[])
+            match random_box::open(context, item, quantity) {
+                Some(contents) => contents.iter().fold(success().int(contents.len() as u32), |reply, item| reply.raw(item)),
+                None => success().int(1).int(quantity as u32).byte(CASH_ITEM_TYPE).byte(item).buf(&[]),
+            }
         }
         (CATEGORY_SHOP, SHOP_RECEIVED) => success(),
 
