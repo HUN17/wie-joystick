@@ -581,7 +581,7 @@ svg {
    */
   --top-gap: 24px;
   /* Width of one keypad key; the d-pad and the top row scale with it. */
-  --key: min(13vw, 7.5vh, 52px);
+  --key: min(13vw, 7.5vh, 48px);
   /* Space below the controls: they reach into the home indicator area but leave room for its swipe. */
   --pad-bottom: max(6px, env(safe-area-inset-bottom) - 20px);
   /* Height of the controls from the bottom of the screen: top row, gap, four key rows with gaps, padding. */
