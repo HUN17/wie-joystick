@@ -43,6 +43,8 @@ export interface Wie {
   originalAppMetadata?(id: string): Promise<{ title: string; icon?: Blob }>;
   /** The app's saved files and records bundled into one JSON file; absent when saves live elsewhere. */
   exportSaves?(id: string): Promise<File | undefined>;
+  /** Replaces the app's saved files with those in a bundle made by exportSaves. */
+  importSaves?(id: string, file: File): Promise<void>;
   readSettings(): Promise<Settings>;
   writeSettings(settings: Settings): Promise<void>;
   startApp(id: string, onEvent: (event: SessionEvent) => void): Promise<PlayerSession | undefined>;

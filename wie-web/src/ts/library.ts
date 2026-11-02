@@ -50,6 +50,8 @@ export const initializeLibrary = async (backend: Wie, launchApp: (app: LibraryAp
   const chooseAppIcon = document.getElementById("choose-app-icon") as HTMLButtonElement;
   const restoreApp = document.getElementById("restore-app") as HTMLButtonElement;
   const exportSaves = document.getElementById("export-saves") as HTMLButtonElement;
+  const importSaves = document.getElementById("import-saves") as HTMLButtonElement;
+  const savesInput = document.getElementById("saves-input") as HTMLInputElement;
   const appIconInput = document.getElementById("app-icon-input") as HTMLInputElement;
   const saveApp = document.getElementById("save-app") as HTMLButtonElement;
   const canEdit = backend.updateApp !== undefined;
@@ -539,6 +541,22 @@ export const initializeLibrary = async (backend: Wie, launchApp: (app: LibraryAp
       link.download = file.name;
       link.click();
       setTimeout(() => URL.revokeObjectURL(link.href), 60_000);
+    } catch (error) {
+      window.alert(t("editFailed", { error: String(error) }));
+    }
+  });
+  importSaves.hidden = !backend.importSaves;
+  importSaves.addEventListener("click", () => savesInput.click());
+  savesInput.addEventListener("change", async () => {
+    const file = savesInput.files?.[0];
+    savesInput.value = "";
+    if (!file || !editingApp || !backend.importSaves) return;
+    if (!window.confirm(t("confirmImportSaves", { title: editingApp.title }))) return;
+    try {
+      await backend.importSaves(editingApp.id, file);
+      pendingExport = backend.exportSaves?.(editingApp.id);
+      pendingExport?.catch(() => undefined);
+      window.alert(t("savesImported"));
     } catch (error) {
       window.alert(t("editFailed", { error: String(error) }));
     }

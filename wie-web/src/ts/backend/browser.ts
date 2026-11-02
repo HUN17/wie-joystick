@@ -102,6 +102,27 @@ export const initializeWie = async (): Promise<Wie> => {
       const bundle = { app: id, title: app.title, exportedAt: new Date().toISOString(), files, records: databases };
       return new File([JSON.stringify(bundle, null, 1)], `${app.title}-saves.json`, { type: "application/json" });
     },
+    async importSaves(id, file) {
+      const bundle = JSON.parse(await file.text()) as { app?: unknown; files?: { path: string; data: string }[]; records?: unknown[] };
+      if (bundle.app !== id || !Array.isArray(bundle.files)) throw new Error(t("savesMismatch"));
+      if (bundle.records?.length) throw new Error(t("savesRecordsUnsupported"));
+      const db = await openDatabase("wie_filesystem");
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const transaction = db.transaction("files", "readwrite");
+          const files = transaction.objectStore("files");
+          // Files missing from the bundle are removed, so the app sees exactly the exported saves.
+          files.delete(IDBKeyRange.bound([id], [id, []]));
+          for (const saved of bundle.files!) {
+            files.put(Uint8Array.from(atob(saved.data), c => c.charCodeAt(0)), [id, saved.path]);
+          }
+          transaction.oncomplete = () => resolve();
+          transaction.onerror = () => reject(transaction.error);
+        });
+      } finally {
+        db.close();
+      }
+    },
     async readSettings() {
       return {
         midiVolume: configStore.get("midiVolume"),

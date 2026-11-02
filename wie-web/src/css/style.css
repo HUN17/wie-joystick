@@ -1405,7 +1405,10 @@ kbd {
   gap: 8px;
 }
 
-/* Exporting saves spans the row under the icon and restore commands. */
-#export-saves {
+/* The save commands have longer labels, so each takes a full row. */
+#export-saves,
+#import-saves {
   grid-column: 1 / -1;
 }
+
+
