@@ -201,7 +201,7 @@ pub async fn remove(context: &mut dyn WIPICContext, name: u32, access_mode: i32)
     if !filesystem.is_valid_path(&name) {
         return Ok(-3);
     }
-    // Packaged resources are read-only; only persistent files can be removed.
+    // Removing a packaged file (e.g. a save shipped in the archive) hides it from then on.
     if filesystem.remove(&name).await { Ok(0) } else { Ok(-12) }
 }
 

@@ -40,6 +40,10 @@ pub fn normalize_guest_path(path: &str) -> Option<String> {
     if out.is_empty() { None } else { Some(out) }
 }
 
+/// Persistent marker directory: an empty file at `.removed/<path>` hides the packaged file `<path>`
+/// after the app removes it, so packaged saves stay deleted across launches.
+const REMOVED_MARKER_PREFIX: &str = ".removed/";
+
 /// Unified filesystem view exposed by `System::filesystem()`.
 ///
 /// Wraps the persistent `Platform::filesystem()` backend and an in-memory
@@ -71,13 +75,26 @@ impl FilesystemOverlay {
         normalize_guest_path(path).is_some()
     }
 
+    fn removed_marker(normalized: &str) -> String {
+        alloc::format!("{REMOVED_MARKER_PREFIX}{normalized}")
+    }
+
+    /// The packaged contents of a file, unless the app has removed it.
+    async fn visible_virtual(&self, normalized: &str) -> Option<Vec<u8>> {
+        let data = self.virtual_files.lock().get(normalized).cloned()?;
+        if self.platform.filesystem().exists(&self.pid, &Self::removed_marker(normalized)).await {
+            return None;
+        }
+        Some(data)
+    }
+
     async fn materialize_virtual(&self, normalized: &str) -> bool {
         let filesystem = self.platform.filesystem();
         if filesystem.exists(&self.pid, normalized).await {
             return true;
         }
 
-        let virtual_data = self.virtual_files.lock().get(normalized).cloned();
+        let virtual_data = self.visible_virtual(normalized).await;
         let Some(virtual_data) = virtual_data else {
             return true;
         };
@@ -104,14 +121,21 @@ impl FilesystemOverlay {
         if self.platform.filesystem().exists(&self.pid, &normalized).await {
             return true;
         }
-        self.virtual_files.lock().contains_key(&normalized)
+        self.visible_virtual(&normalized).await.is_some()
     }
 
+    /// Removes the app's copy of a file and hides any packaged copy, so the file is gone for good.
     pub async fn remove(&self, path: &str) -> bool {
         let Some(normalized) = normalize_guest_path(path) else {
             return false;
         };
-        self.platform.filesystem().remove(&self.pid, &normalized).await
+        let filesystem = self.platform.filesystem();
+        let removed = filesystem.remove(&self.pid, &normalized).await;
+        if self.visible_virtual(&normalized).await.is_none() {
+            return removed;
+        }
+        filesystem.write(&self.pid, &Self::removed_marker(&normalized), 0, &[]).await;
+        filesystem.exists(&self.pid, &Self::removed_marker(&normalized)).await
     }
 
     pub async fn usage(&self) -> u64 {
@@ -124,7 +148,7 @@ impl FilesystemOverlay {
         if let Some(size) = self.platform.filesystem().size(&self.pid, &normalized).await {
             return Some(size);
         }
-        self.virtual_files.lock().get(&normalized).map(|d| d.len())
+        self.visible_virtual(&normalized).await.map(|d| d.len())
     }
 
     pub async fn read(&self, path: &str, offset: usize, count: usize, buf: &mut [u8]) -> Option<usize> {
@@ -135,8 +159,7 @@ impl FilesystemOverlay {
             return plat_fs.read(&self.pid, &normalized, offset, count, buf).await;
         }
 
-        let files = self.virtual_files.lock();
-        let data = files.get(&normalized)?;
+        let data = self.visible_virtual(&normalized).await?;
         if offset >= data.len() {
             return Some(0);
         }
@@ -305,6 +328,25 @@ mod tests {
         let mut buf = [0u8; 4];
         assert_eq!(fs.read("nope", 0, 4, &mut buf).await, None);
         assert_eq!(fs.size("nope").await, None);
+    }
+
+    #[futures_test::test]
+    async fn removed_packaged_file_stays_removed() {
+        let fs = setup();
+        fs.add_virtual("save", vec![1, 2]);
+
+        assert!(fs.remove("save").await);
+        assert!(!fs.exists("save").await);
+        assert_eq!(fs.size("save").await, None);
+
+        // A new file starts empty instead of reviving the packaged contents.
+        assert_eq!(fs.write("save", 0, &[3]).await, 1);
+        let mut buf = [0u8; 2];
+        assert_eq!(fs.read("save", 0, 2, &mut buf).await, Some(1));
+        assert_eq!(buf[0], 3);
+        assert!(fs.remove("save").await);
+        assert!(!fs.exists("save").await);
+        assert!(!fs.remove("save").await);
     }
 
     #[futures_test::test]
