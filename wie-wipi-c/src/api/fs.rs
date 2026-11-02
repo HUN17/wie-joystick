@@ -217,9 +217,36 @@ pub async fn available(context: &mut dyn WIPICContext) -> Result<i32> {
     Ok(STORAGE_LIMIT.saturating_sub(context.system().filesystem().usage().await) as i32)
 }
 
-pub async fn rename(_context: &mut dyn WIPICContext, old_name: u32, new_name: u32, access_mode: i32) -> Result<i32> {
-    tracing::warn!("stub MC_fsRename({old_name:#x}, {new_name:#x}, {access_mode})");
-    Ok(-1)
+/// Moves a file's contents to a new name, replacing any file already there. Games use this to swap
+/// in a rewritten save (e.g. 영웅서기4 writes "chicken" and renames it over "kickass"), so the new
+/// file is written in full before the old name is removed.
+pub async fn rename(context: &mut dyn WIPICContext, old_name: u32, new_name: u32, access_mode: i32) -> Result<i32> {
+    tracing::debug!("MC_fsRename({old_name:#x}, {new_name:#x}, {access_mode})");
+    let (Ok(old_name), Ok(new_name)) = (
+        String::from_utf8(read_null_terminated_string_bytes(context, old_name)?),
+        String::from_utf8(read_null_terminated_string_bytes(context, new_name)?),
+    ) else {
+        return Ok(-3); // M_E_BADFILENAME
+    };
+    let filesystem = context.system().filesystem().clone();
+    if new_name.len() >= 128 || !filesystem.is_valid_path(&old_name) || !filesystem.is_valid_path(&new_name) {
+        return Ok(-3);
+    }
+    let Some(size) = filesystem.size(&old_name).await else {
+        return Ok(-12); // M_E_NOENT
+    };
+    if old_name == new_name {
+        return Ok(0);
+    }
+    let mut data = vec![0; size];
+    if filesystem.read(&old_name, 0, size, &mut data).await != Some(size)
+        || !filesystem.truncate(&new_name, 0).await
+        || filesystem.write(&new_name, 0, &data).await != size
+        || !filesystem.remove(&old_name).await
+    {
+        return Ok(-1); // M_E_ERROR
+    }
+    Ok(0)
 }
 
 pub async fn make_directory(_context: &mut dyn WIPICContext, name: u32, access_mode: i32) -> Result<i32> {
@@ -265,7 +292,7 @@ mod tests {
 
     use crate::{WIPICContext, context::test::TestContext};
 
-    use super::{OPEN_READ_ONLY, STORAGE_LIMIT, available, close, exists, file_attribute, open, read, remove, seek, tell, write};
+    use super::{OPEN_READ_ONLY, STORAGE_LIMIT, available, close, exists, file_attribute, open, read, remove, rename, seek, tell, write};
 
     #[futures_test::test]
     async fn file_cursor_and_persistence_are_independent_of_database_records() {
@@ -320,6 +347,28 @@ mod tests {
         assert_eq!(exists(&mut context, 0x1000, 1).await.unwrap(), -12);
         assert_eq!(available(&mut context).await.unwrap(), STORAGE_LIMIT as i32);
         assert_eq!(database.get(1).await.unwrap(), [9, 8]);
+    }
+
+    #[futures_test::test]
+    async fn rename_replaces_the_target_file() {
+        let system = System::new(Box::new(TestPlatform::new()), "test-pid", "test-aid", DefaultTaskRunner);
+        let mut context = TestContext::with_system(system);
+        context.write_bytes(0x1000, b"chicken\0").unwrap();
+        context.write_bytes(0x1100, b"kickass\0").unwrap();
+        context.write_bytes(0x2000, &[1, 2, 3]).unwrap();
+        let filesystem = context.system().filesystem().clone();
+        assert_eq!(filesystem.write("kickass", 0, &[9; 8]).await, 8);
+
+        assert_eq!(rename(&mut context, 0x1000, 0x1100, 1).await.unwrap(), -12);
+        let fd = open(&mut context, 0x1000, 8, 1).await.unwrap();
+        assert_eq!(write(&mut context, fd, 0x2000, 3).await.unwrap(), 3);
+        assert_eq!(close(&mut context, fd).await.unwrap(), 0);
+
+        assert_eq!(rename(&mut context, 0x1000, 0x1100, 1).await.unwrap(), 0);
+        assert_eq!(exists(&mut context, 0x1000, 1).await.unwrap(), -12);
+        let mut contents = [0; 8];
+        assert_eq!(filesystem.read("kickass", 0, 8, &mut contents).await, Some(3));
+        assert_eq!(contents[..3], [1, 2, 3]);
     }
 
     #[futures_test::test]
