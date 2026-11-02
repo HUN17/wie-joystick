@@ -89,6 +89,10 @@ pub async fn call_java_method(
             };
             JavaValue(read as u64)
         }
+        "exitApp" => {
+            context.system.platform().exit();
+            JavaValue(0)
+        }
         _ => {
             tracing::warn!("stub {class}.{name}{signature}({})", format_args(args));
             return Ok(JavaValue(0));
