@@ -7,6 +7,38 @@ import { t } from "../i18n";
 import { setMasterVolume, setPcmVolume } from "../midi";
 import { startWasmSession } from "./wasm";
 
+const openDatabase = (name: string): Promise<IDBDatabase> =>
+  new Promise((resolve, reject) => {
+    const request = indexedDB.open(name);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+
+// Every key and value of an object store, or nothing when the database has no such store.
+const readStore = async (database: string, store: string): Promise<[IDBValidKey, unknown][]> => {
+  const db = await openDatabase(database);
+  try {
+    if (!db.objectStoreNames.contains(store)) return [];
+    return await new Promise((resolve, reject) => {
+      const transaction = db.transaction(store, "readonly");
+      const keys = transaction.objectStore(store).getAllKeys();
+      const values = transaction.objectStore(store).getAll();
+      transaction.oncomplete = () => resolve(keys.result.map((key, index) => [key, values.result[index]]));
+      transaction.onerror = () => reject(transaction.error);
+    });
+  } finally {
+    db.close();
+  }
+};
+
+const toBase64 = (data: Uint8Array): string => {
+  let binary = "";
+  for (let offset = 0; offset < data.length; offset += 0x8000) {
+    binary += String.fromCharCode(...data.subarray(offset, offset + 0x8000));
+  }
+  return btoa(binary);
+};
+
 export const initializeWie = async (): Promise<Wie> => {
   const store = await AppLibraryStore.open();
 
@@ -56,6 +88,19 @@ export const initializeWie = async (): Promise<Wie> => {
       } finally {
         extracted.free();
       }
+    },
+    async exportSaves(id) {
+      const app = await store.getApp(id);
+      if (!app) throw new Error(t("appFileMissing"));
+      const files = (await readStore("wie_filesystem", "files"))
+        .filter(([key]) => Array.isArray(key) && key[0] === id)
+        .map(([key, value]) => ({ path: String((key as IDBValidKey[])[1]), data: toBase64(new Uint8Array(value as Uint8Array)) }));
+      const databases = (await indexedDB.databases()).some(db => db.name === `wie_${id}`)
+        ? (await readStore(`wie_${id}`, `wie_${id}`)).map(([key, value]) => ({ key: String(key), data: toBase64(new Uint8Array(value as Uint8Array)) }))
+        : [];
+      if (!files.length && !databases.length) return undefined;
+      const bundle = { app: id, title: app.title, exportedAt: new Date().toISOString(), files, records: databases };
+      return new File([JSON.stringify(bundle, null, 1)], `${app.title}-saves.json`, { type: "application/json" });
     },
     async readSettings() {
       return {

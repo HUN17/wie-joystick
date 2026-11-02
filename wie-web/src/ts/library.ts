@@ -1,4 +1,4 @@
-import { Check, CircleHelp, EllipsisVertical, Globe2, Image, Pencil, Plus, RotateCcw, Settings, Trash2, Upload, X, createIcons } from "lucide";
+import { Check, CircleHelp, Download, EllipsisVertical, Globe2, Image, Pencil, Plus, RotateCcw, Settings, Trash2, Upload, X, createIcons } from "lucide";
 
 import type { LibraryApp, Wie } from "./backend";
 import { t } from "./i18n";
@@ -8,6 +8,7 @@ const APPS_PER_PAGE = 12;
 const icons = {
   Check,
   CircleHelp,
+  Download,
   EllipsisVertical,
   Globe2,
   Image,
@@ -48,6 +49,7 @@ export const initializeLibrary = async (backend: Wie, launchApp: (app: LibraryAp
   const editAppTitle = document.getElementById("edit-app-title") as HTMLInputElement;
   const chooseAppIcon = document.getElementById("choose-app-icon") as HTMLButtonElement;
   const restoreApp = document.getElementById("restore-app") as HTMLButtonElement;
+  const exportSaves = document.getElementById("export-saves") as HTMLButtonElement;
   const appIconInput = document.getElementById("app-icon-input") as HTMLInputElement;
   const saveApp = document.getElementById("save-app") as HTMLButtonElement;
   const canEdit = backend.updateApp !== undefined;
@@ -121,7 +123,12 @@ export const initializeLibrary = async (backend: Wie, launchApp: (app: LibraryAp
     }
   };
 
+  // Saves are bundled when the editor opens, so a tap can share them at once: iOS only opens the
+  // share sheet straight from the tap.
+  let pendingExport: Promise<File | undefined> | undefined;
   const openEditor = (app: LibraryApp) => {
+    pendingExport = backend.exportSaves?.(app.id);
+    pendingExport?.catch(() => undefined);
     editingApp = app;
     editingIcon = app.icon;
     editAppTitle.value = app.title;
@@ -505,6 +512,33 @@ export const initializeLibrary = async (backend: Wie, launchApp: (app: LibraryAp
     try {
       editingIcon = await iconFromImage(file);
       showEditingIcon();
+    } catch (error) {
+      window.alert(t("editFailed", { error: String(error) }));
+    }
+  });
+  exportSaves.hidden = !backend.exportSaves;
+  exportSaves.addEventListener("click", async () => {
+    if (!pendingExport) return;
+    try {
+      const file = await pendingExport;
+      if (!file) {
+        window.alert(t("noSaves"));
+        return;
+      }
+      if (navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file] });
+          return;
+        } catch (error) {
+          // Cancelling the share sheet is not a failure; a refused share falls back to a download.
+          if (error instanceof DOMException && error.name === "AbortError") return;
+        }
+      }
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(file);
+      link.download = file.name;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 60_000);
     } catch (error) {
       window.alert(t("editFailed", { error: String(error) }));
     }

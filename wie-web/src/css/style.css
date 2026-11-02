@@ -1400,10 +1400,12 @@ kbd {
 }
 
 .edit-app-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 
-.edit-app-actions button {
-  flex: 1;
+/* Exporting saves spans the row under the icon and restore commands. */
+#export-saves {
+  grid-column: 1 / -1;
 }

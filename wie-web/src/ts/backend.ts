@@ -41,6 +41,8 @@ export interface Wie {
   updateApp?(app: LibraryApp): Promise<void>;
   /** The title and icon read from the app file itself. */
   originalAppMetadata?(id: string): Promise<{ title: string; icon?: Blob }>;
+  /** The app's saved files and records bundled into one JSON file; absent when saves live elsewhere. */
+  exportSaves?(id: string): Promise<File | undefined>;
   readSettings(): Promise<Settings>;
   writeSettings(settings: Settings): Promise<void>;
   startApp(id: string, onEvent: (event: SessionEvent) => void): Promise<PlayerSession | undefined>;
