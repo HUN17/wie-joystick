@@ -89,8 +89,10 @@ impl MIDlet {
             .await
     }
 
-    async fn notify_destroyed(_jvm: &Jvm, _context: &mut WieJvmContext, this: ClassInstanceRef<Self>) -> JvmResult<()> {
-        tracing::warn!("stub javax.microedition.midlet.MIDlet::notifyDestroyed({this:?})");
+    async fn notify_destroyed(_jvm: &Jvm, context: &mut WieJvmContext, this: ClassInstanceRef<Self>) -> JvmResult<()> {
+        tracing::debug!("javax.microedition.midlet.MIDlet::notifyDestroyed({this:?})");
+
+        context.system().platform().exit();
 
         Ok(())
     }

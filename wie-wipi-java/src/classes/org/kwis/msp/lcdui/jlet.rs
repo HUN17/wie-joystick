@@ -58,6 +58,7 @@ impl Jlet {
                 JavaFieldProto::new("wipiMidlet", "Lnet/wie/WIPIMIDlet;", FieldAccessFlags::PRIVATE),
                 JavaFieldProto::new("dis", "Lorg/kwis/msp/lcdui/Display;", FieldAccessFlags::PRIVATE),
                 JavaFieldProto::new("eq", "Lorg/kwis/msp/lcdui/EventQueue;", FieldAccessFlags::PRIVATE),
+                JavaFieldProto::new("destroyed", "Z", FieldAccessFlags::PRIVATE),
                 JavaFieldProto::new(
                     "currentJlet",
                     "Lorg/kwis/msp/lcdui/Jlet;",
@@ -156,17 +157,24 @@ impl Jlet {
         Ok(value)
     }
 
-    async fn notify_destroyed(jvm: &Jvm, _: &mut WieJvmContext, this: ClassInstanceRef<Self>) -> JvmResult<()> {
+    async fn notify_destroyed(jvm: &Jvm, _: &mut WieJvmContext, mut this: ClassInstanceRef<Self>) -> JvmResult<()> {
         tracing::debug!("org.kwis.msp.lcdui.Jlet::notifyDestroyed({this:?})");
+
+        // Apps commonly call notifyDestroyed from destroyApp, which this method invokes; only the first call runs.
+        let destroyed: bool = jvm.get_field(&this, "org/kwis/msp/lcdui/Jlet", "destroyed", "Z").await?;
+        if destroyed {
+            return Ok(());
+        }
+        jvm.put_field(&mut this, "org/kwis/msp/lcdui/Jlet", "destroyed", "Z", true).await?;
+
+        let _: () = jvm
+            .invoke_virtual(&this, "org/kwis/msp/lcdui/Jlet", "destroyApp", "(Z)V", (false,))
+            .await?;
 
         let midlet: ClassInstanceRef<MIDlet> = jvm
             .get_field(&this, "org/kwis/msp/lcdui/Jlet", "wipiMidlet", "Lnet/wie/WIPIMIDlet;")
             .await?;
         let _: () = jvm.invoke_virtual(&midlet, "net/wie/WIPIMIDlet", "notifyDestroyed", "()V", ()).await?;
-
-        let _: () = jvm
-            .invoke_virtual(&this, "org/kwis/msp/lcdui/Jlet", "destroyApp", "(Z)V", (false,))
-            .await?;
 
         Ok(())
     }

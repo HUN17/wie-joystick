@@ -71,7 +71,8 @@ const main = async () => {
       const panicked = rustPanic !== undefined;
       const showError = () => {
         window.alert(native ? t("restartRequired") : String(failure));
-        if (panicked && !native) window.location.reload();
+        // A failed emulator may still hold its memory and borrows, so the page starts over with a fresh one.
+        if (!native) window.location.reload();
       };
       if (Sentry.isEnabled()) {
         const eventId = Sentry.captureException(failure, {
