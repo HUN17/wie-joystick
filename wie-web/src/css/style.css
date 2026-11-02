@@ -1372,6 +1372,31 @@ kbd {
   margin: 8px 0 16px;
 }
 
+.edit-app-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 16px 0 4px;
+}
+
+.edit-app-option input {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  margin: 2px 0 0;
+}
+
+.edit-app-option > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.edit-app-option small {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
 .edit-app-icon {
   width: 72px;
   height: 72px;

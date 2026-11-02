@@ -47,6 +47,7 @@ export const initializeLibrary = async (backend: Wie, launchApp: (app: LibraryAp
   const editDialog = document.getElementById("edit-dialog") as HTMLDialogElement;
   const editAppIcon = document.getElementById("edit-app-icon") as HTMLSpanElement;
   const editAppTitle = document.getElementById("edit-app-title") as HTMLInputElement;
+  const editFastLoading = document.getElementById("edit-fast-loading") as HTMLInputElement;
   const chooseAppIcon = document.getElementById("choose-app-icon") as HTMLButtonElement;
   const restoreApp = document.getElementById("restore-app") as HTMLButtonElement;
   const exportSaves = document.getElementById("export-saves") as HTMLButtonElement;
@@ -134,6 +135,7 @@ export const initializeLibrary = async (backend: Wie, launchApp: (app: LibraryAp
     editingApp = app;
     editingIcon = app.icon;
     editAppTitle.value = app.title;
+    editFastLoading.checked = app.fastLoading ?? false;
     showEditingIcon();
     editDialog.showModal();
   };
@@ -580,7 +582,7 @@ export const initializeLibrary = async (backend: Wie, launchApp: (app: LibraryAp
     if (!editingApp || !backend.updateApp || !title) return;
     saveApp.disabled = true;
     try {
-      await backend.updateApp({ ...editingApp, title, icon: editingIcon });
+      await backend.updateApp({ ...editingApp, title, icon: editingIcon, fastLoading: editFastLoading.checked });
       apps = await backend.listApps();
       editDialog.close();
       renderLibrary();

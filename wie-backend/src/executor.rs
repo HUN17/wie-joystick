@@ -124,17 +124,19 @@ impl Executor {
     }
 
     // TODO we need to remove error handling from here. we need to JoinHandle like on spawn..
-    pub fn tick<T>(&mut self, now: T) -> Result<()>
+    /// Runs tasks for at most `TICK_BUDGET_MS` of `real_now`. Sleep deadlines follow `now`, which may run
+    /// ahead of real time when waits are skipped.
+    pub fn tick<T, R>(&mut self, now: T, real_now: R) -> Result<()>
     where
         T: Fn() -> Instant,
+        R: Fn() -> Instant,
     {
-        let end = now() + TICK_BUDGET_MS;
+        let end = real_now() + TICK_BUDGET_MS;
         loop {
-            let now = now();
-
-            if now > end {
+            if real_now() > end {
                 break;
             }
+            let now = now();
 
             {
                 let inner = self.inner.lock();
@@ -268,9 +270,9 @@ mod tests {
                 })
                 .await;
             });
-            executor.tick(advancing_clock(0)).unwrap();
+            executor.tick(advancing_clock(0), advancing_clock(0)).unwrap();
             assert_eq!(polls.load(Ordering::Relaxed), wakes + 1);
-            executor.tick(advancing_clock(100)).unwrap();
+            executor.tick(advancing_clock(100), advancing_clock(100)).unwrap();
             assert_eq!(polls.load(Ordering::Relaxed), wakes + 2);
         }
     }
@@ -287,7 +289,7 @@ mod tests {
                 observed.store(true, Ordering::Relaxed);
             });
         });
-        executor.tick(advancing_clock(0)).unwrap();
+        executor.tick(advancing_clock(0), advancing_clock(0)).unwrap();
         assert!(completed.load(Ordering::Relaxed));
     }
 
@@ -304,10 +306,10 @@ mod tests {
             completed_clone.store(true, Ordering::Relaxed);
         });
 
-        assert!(executor.tick(advancing_clock(0)).is_err());
+        assert!(executor.tick(advancing_clock(0), advancing_clock(0)).is_err());
         assert!(!completed.load(Ordering::Relaxed));
 
-        executor.tick(advancing_clock(100)).unwrap();
+        executor.tick(advancing_clock(100), advancing_clock(100)).unwrap();
         assert!(completed.load(Ordering::Relaxed));
     }
 
@@ -326,13 +328,13 @@ mod tests {
 
         executor.spawn(|| async { Err::<(), _>(WieError::FatalError("test error".into())) });
 
-        assert!(executor.tick(advancing_clock(0)).is_err());
+        assert!(executor.tick(advancing_clock(0), advancing_clock(0)).is_err());
         assert!(!completed.load(Ordering::Relaxed));
 
-        executor.tick(advancing_clock(50)).unwrap();
+        executor.tick(advancing_clock(50), advancing_clock(50)).unwrap();
         assert!(!completed.load(Ordering::Relaxed));
 
-        executor.tick(advancing_clock(200)).unwrap();
+        executor.tick(advancing_clock(200), advancing_clock(200)).unwrap();
         assert!(completed.load(Ordering::Relaxed));
     }
 }

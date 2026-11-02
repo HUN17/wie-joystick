@@ -16,6 +16,7 @@ export const startWasmSession = (
   onEvent: (event: SessionEvent) => void,
   host?: EmulatorHost,
   suspended = false,
+  fastWaits = false,
 ): WasmSession => {
   if (rustPanic) throw rustPanic;
   const canvas = document.getElementById("canvas") as HTMLCanvasElement;
@@ -24,7 +25,7 @@ export const startWasmSession = (
   const audio = host?.audio ?? new AudioPlayer();
   let emulator: WieWeb;
   try {
-    emulator = new WieWeb(filename, archive, canvas, font, audio, host);
+    emulator = new WieWeb(filename, archive, canvas, font, audio, host, fastWaits);
   } catch (error) {
     audio.dispose();
     throw rustPanic ?? error;

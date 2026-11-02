@@ -152,7 +152,7 @@ export const initializeWie = async (): Promise<Wie> => {
       await migrateSaves(app.filename, archive, app.id);
       setMasterVolume(settings.midiVolume);
       setPcmVolume(settings.pcmVolume);
-      return startWasmSession(app.filename, archive, fontData, onEvent);
+      return startWasmSession(app.filename, archive, fontData, onEvent, undefined, false, app.fastLoading ?? false);
     },
   };
   return backend;

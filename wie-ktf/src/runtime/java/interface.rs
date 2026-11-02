@@ -388,7 +388,7 @@ pub async fn java_array_new(core: &mut ArmCore, jvm: &mut Jvm, element_type: u32
 }
 
 pub async fn java_check_type(core: &mut ArmCore, jvm: &mut Jvm, ptr_class: u32, ptr_instance: u32, unk: u32) -> Result<u32> {
-    tracing::warn!("stub java_check_type({ptr_class:#x}, {ptr_instance:#x}, {unk:#x})");
+    tracing::debug!("java_check_type({ptr_class:#x}, {ptr_instance:#x}, {unk:#x})");
 
     let instance = JavaClassInstance::from_raw(ptr_instance, core);
 

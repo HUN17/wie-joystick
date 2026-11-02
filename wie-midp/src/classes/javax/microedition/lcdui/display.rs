@@ -22,6 +22,8 @@ const TITLE_HORIZONTAL_PADDING: i32 = 4;
 const TITLE_VERTICAL_PADDING: i32 = 2;
 const TICKER_HEIGHT: i32 = 16;
 const TICKER_INTERVAL_MS: u64 = 100;
+/// A collection walks every object, so painting collects garbage at most this often.
+const PAINT_COLLECTION_INTERVAL_MS: i64 = 200;
 const SOFTKEY_HEIGHT: i32 = 18;
 
 const TITLE_BACKGROUND: i32 = 0x263746;
@@ -126,6 +128,7 @@ impl Display {
                 JavaFieldProto::new("width", "I", FieldAccessFlags::PRIVATE),
                 JavaFieldProto::new("height", "I", FieldAccessFlags::PRIVATE),
                 JavaFieldProto::new("paintDisabled", "Z", FieldAccessFlags::PRIVATE),
+                JavaFieldProto::new("lastCollection", "J", FieldAccessFlags::PRIVATE),
                 JavaFieldProto::new("repaintPending", "Z", FieldAccessFlags::PRIVATE),
                 JavaFieldProto::new("alertGeneration", "I", FieldAccessFlags::PRIVATE),
                 JavaFieldProto::new("tickerGeneration", "I", FieldAccessFlags::PRIVATE),
@@ -995,8 +998,14 @@ impl Display {
 
             screen.paint(&*image);
         }
-        if let Err(error) = jvm.collect_garbage() {
-            return Err(jvm.exception("net/wie/WieError", &error.to_string()).await);
+        let now = context.system().platform().now().raw() as i64;
+        let last_collection: i64 = jvm.get_field(&this, "javax/microedition/lcdui/Display", "lastCollection", "J").await?;
+        if now - last_collection >= PAINT_COLLECTION_INTERVAL_MS {
+            if let Err(error) = jvm.collect_garbage() {
+                return Err(jvm.exception("net/wie/WieError", &error.to_string()).await);
+            }
+            jvm.put_field(&mut this, "javax/microedition/lcdui/Display", "lastCollection", "J", now)
+                .await?;
         }
 
         Ok(())

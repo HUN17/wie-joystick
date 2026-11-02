@@ -59,7 +59,8 @@ impl System {
 
     pub fn tick(&mut self) -> Result<()> {
         let platform = self.platform.clone();
-        self.executor.tick(move || platform.now())
+        let real_platform = self.platform.clone();
+        self.executor.tick(move || platform.now(), move || real_platform.real_now())
     }
 
     pub fn spawn<C>(&self, callable: C)
@@ -71,6 +72,7 @@ impl System {
     }
 
     pub fn sleep(&self, timeout: u64) -> SleepFuture {
+        let timeout = self.platform.shorten_wait(timeout);
         SleepFuture::new(self.platform.now() + timeout, &self.executor)
     }
 

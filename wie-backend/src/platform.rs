@@ -13,6 +13,17 @@ pub trait Platform: Send + Sync {
     fn write_stderr(&self, buf: &[u8]);
     fn exit(&self);
     fn vibrate(&self, duration_ms: u64, intensity: u8);
+
+    /// Returns how long a guest wait of `timeout` milliseconds actually lasts. A platform that shortens
+    /// waits moves `now` forward by the skipped time, so the guest still sees the whole wait pass.
+    fn shorten_wait(&self, timeout: u64) -> u64 {
+        timeout
+    }
+
+    /// Time that has really passed, without the waits `shorten_wait` skipped.
+    fn real_now(&self) -> Instant {
+        self.now()
+    }
 }
 
 /// Platform filesystem abstraction. Every method is scoped by `pid`;

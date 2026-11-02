@@ -19,7 +19,7 @@ use alloc::{
 };
 use core::{
     str,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::atomic::{AtomicBool, AtomicU64, Ordering},
 };
 
 use hashbrown::HashMap;
@@ -46,12 +46,20 @@ extern "C" {
     fn record_panic(message: &str);
 }
 
+/// With fast loading, waits at least this long are treated as paced loading steps rather than frame timing.
+const LONG_WAIT_MS: u64 = 60;
+/// A shortened wait still lasts about one frame so loading screens keep drawing.
+const SHORTENED_WAIT_MS: u64 = 16;
+
 struct WieWebPlatform {
     audio_player: AudioPlayer,
     database_repository: Box<dyn BackendDatabaseRepository>,
     filesystem: Box<dyn Filesystem>,
     host: Option<WasmHost>,
     exited: Arc<AtomicBool>,
+    fast_waits: bool,
+    /// Time skipped by shortened waits, added to the guest clock.
+    skipped_ms: AtomicU64,
     font: Font,
     window: WindowImpl,
 }
@@ -61,7 +69,7 @@ unsafe impl Sync for WieWebPlatform {}
 unsafe impl Send for WieWebPlatform {}
 
 impl WieWebPlatform {
-    fn new(window: WindowImpl, font: Font, audio_player: AudioPlayer, host: Option<WasmHost>, exited: Arc<AtomicBool>) -> Self {
+    fn new(window: WindowImpl, font: Font, audio_player: AudioPlayer, host: Option<WasmHost>, exited: Arc<AtomicBool>, fast_waits: bool) -> Self {
         let (database_repository, filesystem): (Box<dyn BackendDatabaseRepository>, Box<dyn Filesystem>) = match &host {
             Some(host) => (Box::new(host.clone()), Box::new(host.clone())),
             None => (Box::new(DatabaseRepository::new()), Box::new(WebFilesystem::new())),
@@ -72,6 +80,8 @@ impl WieWebPlatform {
             filesystem,
             host,
             exited,
+            fast_waits,
+            skipped_ms: AtomicU64::new(0),
             font,
             window,
         }
@@ -88,6 +98,10 @@ impl Platform for WieWebPlatform {
     }
 
     fn now(&self) -> Instant {
+        self.real_now() + self.skipped_ms.load(Ordering::SeqCst)
+    }
+
+    fn real_now(&self) -> Instant {
         let millis = self.host.as_ref().map_or_else(js_sys::Date::now, WasmHost::now);
 
         Instant::from_epoch_millis(millis as _)
@@ -117,6 +131,14 @@ impl Platform for WieWebPlatform {
 
     fn exit(&self) {
         self.exited.store(true, Ordering::SeqCst);
+    }
+
+    fn shorten_wait(&self, timeout: u64) -> u64 {
+        if !self.fast_waits || timeout < LONG_WAIT_MS {
+            return timeout;
+        }
+        self.skipped_ms.fetch_add(timeout - SHORTENED_WAIT_MS, Ordering::SeqCst);
+        SHORTENED_WAIT_MS
     }
 
     fn vibrate(&self, duration_ms: u64, intensity: u8) {
@@ -222,13 +244,21 @@ impl WieWeb {
         font_data: Vec<u8>,
         audio_player: AudioPlayer,
         host: Option<WasmHost>,
+        fast_waits: bool,
     ) -> Result<WieWeb, JsError> {
         (|| {
             let should_redraw = Arc::new(AtomicBool::new(true));
             let exited = Arc::new(AtomicBool::new(false));
             let window = WindowImpl::new(canvas, should_redraw.clone());
             let font = Font::try_from_vec(font_data)?;
-            let platform = Box::new(WieWebPlatform::new(window, font, audio_player.clone(), host.clone(), exited.clone()));
+            let platform = Box::new(WieWebPlatform::new(
+                window,
+                font,
+                audio_player.clone(),
+                host.clone(),
+                exited.clone(),
+                fast_waits,
+            ));
             let options = Options {
                 enable_gdbserver: false,
                 aot: Some(Box::new(aot::WasmExecutor::default())),

@@ -6,6 +6,7 @@ export interface LibraryApp {
   filename: string;
   icon?: Blob;
   addedAt: number;
+  fastLoading?: boolean;
 }
 
 export interface Settings {

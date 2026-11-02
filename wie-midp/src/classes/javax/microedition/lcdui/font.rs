@@ -120,7 +120,7 @@ impl Font {
     }
 
     async fn init(_: &Jvm, _: &mut WieJvmContext, this: ClassInstanceRef<Font>) -> JvmResult<()> {
-        tracing::warn!("stub javax.microedition.lcdui.Font::<init>({this:?})");
+        tracing::debug!("javax.microedition.lcdui.Font::<init>({this:?})");
 
         Ok(())
     }
@@ -132,7 +132,7 @@ impl Font {
     }
 
     async fn get_default_font(jvm: &Jvm, _: &mut WieJvmContext) -> JvmResult<ClassInstanceRef<Self>> {
-        tracing::warn!("stub javax.microedition.lcdui.Font::getDefaultFont");
+        tracing::debug!("javax.microedition.lcdui.Font::getDefaultFont");
 
         let instance = jvm.new_class("javax/microedition/lcdui/Font", "()V", []).await?;
 
